@@ -23,14 +23,17 @@ h1{font-size:18px;margin:0 0 14px;text-align:center}
 input{width:100%;height:44px;padding:0 12px;font:18px/44px system-ui,sans-serif;color:var(--fg);background:var(--card);border:1px solid var(--bd);border-radius:10px;outline:none}
 input:focus{border-color:var(--b0)}
 .ghost{position:absolute;inset:0;padding:0 13px;font:18px/44px system-ui,sans-serif;white-space:pre;overflow:hidden;pointer-events:none;display:none}
-.ghost span{display:inline-block;transition:opacity .25s,transform .25s}
+.ghost span{display:inline-block;transition:opacity var(--d,.25s),transform var(--d,.25s)}
 .ghost span.gone{opacity:0;transform:translateY(18px)}
 button{height:44px;padding:0 16px;border:0;border-radius:10px;background:var(--b0);color:#fff;font-weight:600;font-size:16px;cursor:pointer}
 button:disabled{opacity:.5;cursor:default}
 .wire{position:relative;height:170px;margin:4px 0;display:flex;justify-content:flex-start}
 .wire .l{position:absolute;left:42px;top:0;bottom:0;width:3px;background:var(--line);border-radius:2px}
-.bit{position:absolute;left:42px;top:0;width:16px;height:18px;margin-left:-7px;text-align:center;font:700 14px/18px ui-monospace,Menlo,Consolas,monospace;background:var(--bg);border-radius:4px;opacity:0}
+.bit{position:absolute;left:42px;top:0;width:9px;height:12px;margin-left:-3px;text-align:center;font:700 10px/12px ui-monospace,Menlo,Consolas,monospace;background:var(--bg);border-radius:3px;opacity:0}
 .b0{color:var(--b0)}.b1{color:var(--b1)}
+.speed{display:flex;align-items:center;gap:10px;justify-content:center;margin:0 0 14px;font-size:13px;color:var(--mut)}
+.speed input{width:140px;height:24px;padding:0;accent-color:var(--b0)}
+.speed output{width:52px;color:var(--fg);font-weight:600}
 .tag{position:absolute;left:70px;top:50%;transform:translateY(-50%);font:14px ui-monospace,Menlo,Consolas,monospace;color:var(--mut)}
 .codes{margin-top:6px;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;color:var(--mut);word-break:break-all;min-height:18px}
 </style>
@@ -38,6 +41,7 @@ button:disabled{opacity:.5;cursor:default}
 <body>
 <main>
 <h1>📡 Text → bits → text</h1>
+<div class="speed"><span>Speed</span><input id="spd" type="range" min="0" max="2" step="1" value="1" list="ticks" aria-label="Simulation speed"><datalist id="ticks"><option value="0"><option value="1"><option value="2"></datalist><output id="spdl">Normal</output></div>
 <div class="row">
 <div class="phone" id="p1">📱</div>
 <div class="col"><div class="field">
@@ -53,16 +57,20 @@ button:disabled{opacity:.5;cursor:default}
 <script>
 const $=id=>document.getElementById(id);
 const inp=$('in'),out=$('out'),ghost=$('ghost'),btn=$('send'),wire=document.querySelector('.wire'),tag=$('tag'),codes=$('codes');
-const STEP=250,TRAVEL=900;
+const spd=$('spd'),spdl=$('spdl'),NAMES=['Slow','Normal','Fast'],MULT=[2,1,0.5];
+spd.oninput=()=>spdl.textContent=NAMES[spd.value];
+let STEP=250,TRAVEL=900;
 function run(){
   const msg=inp.value;if(!msg)return;
   const chars=Array.from(msg);
+  const m=MULT[spd.value];STEP=250*m;TRAVEL=900*m;spd.disabled=true;
+  ghost.style.setProperty('--d',(STEP/1000)+'s');
   btn.disabled=true;inp.disabled=true;out.value='';codes.textContent='';
   ghost.innerHTML=chars.map(c=>'<span>'+c.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span>').join('');
   ghost.style.display='block';inp.style.color='transparent';
   $('p1').classList.add('on');
   const spans=ghost.children,enc=new TextEncoder(),dec=new TextDecoder();
-  const H=wire.clientHeight-18;
+  const H=wire.clientHeight-12;
   chars.forEach((ch,i)=>{
     const bytes=enc.encode(ch);
     const bits=Array.from(bytes).map(b=>b.toString(2).padStart(8,'0'));
@@ -89,7 +97,7 @@ function run(){
   const total=(chars.length-1)*STEP+TRAVEL+STEP+300;
   setTimeout(()=>{
     ghost.style.display='none';ghost.innerHTML='';inp.style.color='';inp.value='';
-    inp.disabled=false;btn.disabled=false;tag.textContent='';
+    inp.disabled=false;btn.disabled=false;spd.disabled=false;tag.textContent='';
     $('p1').classList.remove('on');inp.focus();
   },total);
 }
