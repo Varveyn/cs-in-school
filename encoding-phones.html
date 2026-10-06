@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uk">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Encoding Phones</title>
+<title>Кодування: телефони</title>
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
 --bg:#f6f7fb;--fg:#1b1f2a;--card:#fff;--line:#9aa3b5;--b0:#2563eb;--b1:#e11d48;--mut:#6b7385;--bd:#d5d9e4}
@@ -29,35 +29,38 @@ button{height:44px;padding:0 16px;border:0;border-radius:10px;background:var(--b
 button:disabled{opacity:.5;cursor:default}
 .wire{position:relative;height:170px;margin:4px 0;display:flex;justify-content:flex-start}
 .wire .l{position:absolute;left:42px;top:0;bottom:0;width:3px;background:var(--line);border-radius:2px}
-.bit{position:absolute;left:42px;top:0;width:9px;height:12px;margin-left:-3px;text-align:center;font:700 10px/12px ui-monospace,Menlo,Consolas,monospace;background:var(--bg);border-radius:3px;opacity:0}
-.b0{color:var(--b0)}.b1{color:var(--b1)}
+.bit{position:absolute;left:42px;top:0;width:10px;height:10px;margin-left:-3.5px;border-radius:50%;opacity:0}
+.b0{background:var(--b0)}.b1{background:var(--b1)}
 .speed{display:flex;align-items:center;gap:10px;justify-content:center;margin:0 0 14px;font-size:13px;color:var(--mut)}
 .speed input{width:140px;height:24px;padding:0;accent-color:var(--b0)}
-.speed output{width:52px;color:var(--fg);font-weight:600}
+.speed output{width:84px;color:var(--fg);font-weight:600}
+.emojis{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.emojis button{height:36px;min-width:40px;padding:0 8px;font-size:20px;background:var(--card);border:1px solid var(--bd);border-radius:8px}
+.emojis button:active:not(:disabled){transform:scale(.92)}
 .tag{position:absolute;left:70px;top:50%;transform:translateY(-50%);font:14px ui-monospace,Menlo,Consolas,monospace;color:var(--mut)}
 .codes{margin-top:6px;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;color:var(--mut);word-break:break-all;min-height:18px}
 </style>
 </head>
 <body>
 <main>
-<h1>📡 Text → bits → text</h1>
-<div class="speed"><span>Speed</span><input id="spd" type="range" min="0" max="2" step="1" value="1" list="ticks" aria-label="Simulation speed"><datalist id="ticks"><option value="0"><option value="1"><option value="2"></datalist><output id="spdl">Normal</output></div>
+<div class="speed"><span>Швидкість</span><input id="spd" type="range" min="0" max="2" step="1" value="1" list="ticks" aria-label="Швидкість симуляції"><datalist id="ticks"><option value="0"><option value="1"><option value="2"></datalist><output id="spdl">Нормально</output></div>
 <div class="row">
 <div class="phone" id="p1">📱</div>
 <div class="col"><div class="field">
-<div class="wrap"><input id="in" placeholder="Type a message" maxlength="40" autocomplete="off"><div class="ghost" id="ghost"></div></div>
-<button id="send">Send</button></div></div>
+<div class="wrap"><input id="in" spellcheck="false" autocorrect="off" autocapitalize="off" placeholder="Введіть повідомлення" maxlength="40" autocomplete="off"><div class="ghost" id="ghost"></div></div>
+<button id="send">Надіслати</button></div>
+<div class="emojis" id="emojis"></div></div>
 </div>
 <div class="wire"><div class="l"></div><div class="tag" id="tag"></div></div>
 <div class="row">
 <div class="phone" id="p2">📱</div>
-<div class="col"><div class="wrap"><input id="out" readonly placeholder="…"></div><div class="codes" id="codes"></div></div>
+<div class="col"><div class="wrap"><input id="out" spellcheck="false" readonly placeholder="…"></div><div class="codes" id="codes"></div></div>
 </div>
 </main>
 <script>
 const $=id=>document.getElementById(id);
 const inp=$('in'),out=$('out'),ghost=$('ghost'),btn=$('send'),wire=document.querySelector('.wire'),tag=$('tag'),codes=$('codes');
-const spd=$('spd'),spdl=$('spdl'),NAMES=['Slow','Normal','Fast'],MULT=[2,1,0.5];
+const spd=$('spd'),spdl=$('spdl'),NAMES=['Повільно','Нормально','Швидко'],MULT=[2,1,0.5];
 spd.oninput=()=>spdl.textContent=NAMES[spd.value];
 let STEP=250,TRAVEL=900;
 function run(){
@@ -65,12 +68,12 @@ function run(){
   const chars=Array.from(msg);
   const m=MULT[spd.value];STEP=250*m;TRAVEL=900*m;spd.disabled=true;
   ghost.style.setProperty('--d',(STEP/1000)+'s');
-  btn.disabled=true;inp.disabled=true;out.value='';codes.textContent='';
+  btn.disabled=true;inp.disabled=true;setEm(true);out.value='';codes.textContent='';
   ghost.innerHTML=chars.map(c=>'<span>'+c.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span>').join('');
   ghost.style.display='block';inp.style.color='transparent';
   $('p1').classList.add('on');
   const spans=ghost.children,enc=new TextEncoder(),dec=new TextDecoder();
-  const H=wire.clientHeight-12;
+  const H=wire.clientHeight-10;
   chars.forEach((ch,i)=>{
     const bytes=enc.encode(ch);
     const bits=Array.from(bytes).map(b=>b.toString(2).padStart(8,'0'));
@@ -81,7 +84,7 @@ function run(){
       const gap=STEP/all.length;
       for(let j=0;j<all.length;j++){
         const el=document.createElement('div');
-        el.className='bit b'+all[j];el.textContent=all[j];
+        el.className='bit b'+all[j];
         wire.appendChild(el);
         el.animate([{opacity:1,transform:'translateY(0)'},{opacity:1,transform:'translateY('+H+'px)'}],{duration:TRAVEL,delay:j*gap,fill:'both',easing:'linear'})
           .onfinish=()=>el.remove();
@@ -97,10 +100,16 @@ function run(){
   const total=(chars.length-1)*STEP+TRAVEL+STEP+300;
   setTimeout(()=>{
     ghost.style.display='none';ghost.innerHTML='';inp.style.color='';inp.value='';
-    inp.disabled=false;btn.disabled=false;spd.disabled=false;tag.textContent='';
+    inp.disabled=false;btn.disabled=false;spd.disabled=false;setEm(false);tag.textContent='';
     $('p1').classList.remove('on');inp.focus();
   },total);
 }
+const EM=['😀','👍','❤️','🚀','🎉','🔥','🐱'],emBox=$('emojis');
+const setEm=d=>emBox.querySelectorAll('button').forEach(b=>b.disabled=d);
+EM.forEach(e=>{const b=document.createElement('button');b.type='button';b.textContent=e;
+  b.onclick=()=>{if(inp.value.length+e.length>inp.maxLength)return;
+    const a=inp.selectionStart,z=inp.selectionEnd;inp.setRangeText(e,a,z,'end');inp.focus()};
+  emBox.appendChild(b)});
 btn.onclick=run;
 inp.addEventListener('keydown',e=>{if(e.key==='Enter')run()});
 </script>
