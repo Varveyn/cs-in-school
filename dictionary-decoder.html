@@ -1,0 +1,472 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Dictionary Decoder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@500;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap">
+<style>
+/* Layout: one column, four short lessons. The compressed text reads as prose with dashed emoji tokens; the library of replaced strings sits below it as draggable rows. */
+:root{
+  --bg:#E8EEEC; --surface:#F7FAF9; --fg:#10201C; --muted:#566763; --line:#C3D0CB;
+  --accent:#0B7A66; --accent-ink:#FFFFFF;
+  --flash:#F2BE3D; --bad:#B4321D;
+  --font-display:'Onest',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0C1412; --surface:#131D1A; --fg:#E3EFEB; --muted:#8FA8A1; --line:#243630;
+    --accent:#4FD1B5; --accent-ink:#06201A; --flash:#E8B93C; --bad:#FF9A85;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0C1412; --surface:#131D1A; --fg:#E3EFEB; --muted:#8FA8A1; --line:#243630;
+  --accent:#4FD1B5; --accent-ink:#06201A; --flash:#E8B93C; --bad:#FF9A85;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-display);font-size:15px;line-height:1.5;padding-inline:16px;padding-block:20px 48px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app{max-width:640px;margin-inline:auto;display:grid;gap:16px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+h1{margin:0;font:800 28px/1.1 var(--font-display);letter-spacing:-.02em}
+.how{margin:6px 0 0;color:var(--muted);font-size:14px;max-width:48ch}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;color:var(--muted);padding:8px 14px;font-weight:700;font-size:13px}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.steps{display:flex;flex-wrap:wrap;gap:8px}
+.step{width:40px;height:40px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font:700 15px var(--font-mono)}
+.step.ok{border-color:var(--accent);color:var(--accent)}
+.step.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.lesson{display:grid;gap:6px}
+h2{margin:0;font:800 20px/1.25 var(--font-display);text-wrap:balance}
+.lesson p{margin:0;max-width:60ch}
+.lesson .task{font-weight:700}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.label{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+.tools{display:flex;gap:8px}
+.minibtn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 12px;font-weight:700;font-size:13px}
+.minibtn:disabled{opacity:.45;cursor:default}
+.doc{padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:10px;font-size:18px;line-height:2.3;white-space:pre-wrap;overflow-wrap:anywhere}
+.t.x1{background:color-mix(in srgb,var(--accent) 18%,transparent)}
+.t.x2{background:color-mix(in srgb,var(--accent) 34%,transparent)}
+.t.x3{background:color-mix(in srgb,var(--accent) 50%,transparent)}
+.t.pop{animation:flash .7s ease-out}
+@keyframes flash{from{background:var(--flash)}}
+.tok{display:inline-grid;place-items:center;min-width:36px;height:36px;margin-inline:1px;padding:0 4px;vertical-align:middle;border:2px dashed var(--accent);border-radius:8px;background:transparent;font-size:20px;line-height:1}
+.tok.x1{background:color-mix(in srgb,var(--accent) 18%,transparent)}
+.tok.x2{background:color-mix(in srgb,var(--accent) 34%,transparent)}
+.tok.x3{background:color-mix(in srgb,var(--accent) 50%,transparent)}
+.doc.armed .tok{border-style:solid}
+.tok.over,.tok:hover{border-style:solid;background:color-mix(in srgb,var(--accent) 30%,transparent)}
+.tok.no{animation:shake .35s;border-color:var(--bad)}
+@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.lib{display:grid;gap:8px}
+.entry{display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;text-align:left;border:1px solid var(--line);border-radius:10px;background:var(--surface);touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+.entry[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 16%,var(--surface))}
+.entry.lifted{opacity:.45}
+.entry.pulse{animation:pulse .7s ease-out}
+@keyframes pulse{from{box-shadow:0 0 0 0 var(--accent)}to{box-shadow:0 0 0 10px transparent}}
+.entry .em{font-size:26px;line-height:1}
+.entry .eq{color:var(--muted);font-family:var(--font-mono)}
+.entry .str{flex:1;min-width:0;font:500 15px/1.4 var(--font-mono);overflow-wrap:anywhere}
+.entry .cnt{flex:none;min-width:34px;text-align:center;padding:2px 8px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font:700 12px var(--font-mono)}
+.entry .cnt.ok{color:var(--accent);border-color:var(--accent)}
+.ghost{position:fixed;left:0;top:0;z-index:50;max-width:260px;padding:8px 14px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font:600 14px var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;box-shadow:0 8px 20px rgba(0,0,0,.28)}
+.msg{margin:0;min-height:1.5em;color:var(--muted);font-size:14px}
+.msg.bad{color:var(--bad)}
+.res{display:grid;gap:12px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.status{font:800 20px var(--font-display);color:var(--accent)}
+.res p{margin:0}
+.comp{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px}
+.comp .label{flex-basis:100%}
+.comp .ratio{font:800 28px/1.1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--accent)}
+.comp .ratio.bad{color:var(--bad)}
+.comp .meta{color:var(--muted);font-size:13px;min-width:0}
+.btn{justify-self:start;min-width:140px;padding:12px 20px;border:0;border-radius:8px;background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:15px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<main class="app">
+  <header class="top">
+    <div>
+      <h1>Dictionary Decoder</h1>
+      <p class="how" data-t="how"></p>
+    </div>
+    <div class="seg" role="group" aria-label="Language">
+      <button type="button" id="l-uk" aria-pressed="true">UA</button>
+      <button type="button" id="l-en" aria-pressed="false">EN</button>
+    </div>
+  </header>
+
+  <nav class="steps" id="steps"></nav>
+
+  <section class="lesson">
+    <h2 id="l-title"></h2>
+    <p id="l-intro"></p>
+    <p class="task" id="l-task"></p>
+  </section>
+
+  <div class="row">
+    <span class="label" data-t="text_l"></span>
+    <span class="tools">
+      <button type="button" class="minibtn" id="step" data-t="step"></button>
+      <button type="button" class="minibtn" id="reset" data-t="reset"></button>
+    </span>
+  </div>
+  <div class="doc" id="doc"></div>
+
+  <div class="label" data-t="lib_l"></div>
+  <div class="lib" id="lib"></div>
+  <p class="msg" id="msg" aria-live="polite"></p>
+
+  <section class="res" id="res" hidden aria-live="polite">
+    <div class="status" id="r-status"></div>
+    <p id="r-after"></p>
+    <div class="comp" id="comp"></div>
+    <button type="button" class="btn" id="next"></button>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+
+  var T = {
+    uk: {
+      how: 'Стиснення за словником: повторювані фрази замінюють символом, а самі фрази зберігають у бібліотеці. Перетягніть запис із бібліотеки на відповідний символ у тексті.',
+      text_l: 'Стиснений текст', lib_l: 'Бібліотека замін', step: 'Крок', reset: 'Спочатку',
+      tip: 'Перетягніть запис на символ у тексті або торкніться запису, а потім символу.',
+      wrong: function (tok, got) { return 'Символ ' + tok + ' означає не те, що ' + got + '. Знайдіть у бібліотеці запис із символом ' + tok + '.'; },
+      tokLabel: function (e) { return 'Символ ' + e; },
+      lesson: 'Урок', done: 'Готово', comp: 'Стиснення',
+      meta: function (o, t, l) { return 'Оригінал ' + o + ' симв. Стиснено: текст ' + t + ' + бібліотека ' + l + ' = ' + (t + l) + ' симв. Бібліотеку теж треба зберігати, тому вона входить у розмір.'; },
+      next: 'Далі', again: 'До першого уроку'
+    },
+    en: {
+      how: 'Dictionary compression: repeated phrases are replaced by a symbol, and the phrases themselves are kept once in a library. Drag a library entry onto the matching symbol in the text.',
+      text_l: 'Compressed text', lib_l: 'Replacement library', step: 'Step', reset: 'Restart',
+      tip: 'Drag an entry onto a symbol in the text, or tap an entry and then a symbol.',
+      wrong: function (tok, got) { return 'The symbol ' + tok + ' does not stand for the same thing as ' + got + '. Find the library entry with ' + tok + '.'; },
+      tokLabel: function (e) { return 'Symbol ' + e; },
+      lesson: 'Lesson', done: 'Done', comp: 'Compression',
+      meta: function (o, t, l) { return 'Original ' + o + ' chars. Compressed: text ' + t + ' + library ' + l + ' = ' + (t + l) + ' chars. The library has to be stored too, so it counts toward the size.'; },
+      next: 'Next', again: 'Back to lesson 1'
+    }
+  };
+
+  var LES = {
+    uk: [
+      { title: 'Один запис у бібліотеці',
+        intro: 'Фраза «наш кіт Мурко» трапляється тричі. У стисненому тексті кожну замінено одним символом 🐱, а сама фраза зберігається в бібліотеці один раз.',
+        task: 'Перетягніть запис із бібліотеки на кожен 🐱 у тексті.',
+        text: '🐱 спить, 🐱 їсть, 🐱 гуляє',
+        lib: [['🐱', 'наш кіт Мурко']],
+        after: 'Кожен 🐱 замінено фразою з бібліотеки. Фраза записана один раз, тому весь пакет коротший за оригінал.' },
+      { title: 'Кілька записів',
+        intro: 'Тепер повторюються дві фрази. Кожна має свій символ і свій запис.',
+        task: 'Підставляйте записи у будь-якому порядку.',
+        text: '🏠 🧼 раму, 🏠 🧼 вікна, 🏠 🧼 підлогу',
+        lib: [['🏠', 'в цьому домі'], ['🧼', 'мама мила']],
+        after: 'Різні фрази отримують різні символи. Бібліотека має два записи, а після підстановок текст читається як звичайно.' },
+      { title: 'Запис у записі',
+        intro: 'Запис у бібліотеці може містити інший символ.',
+        task: 'Спершу розгорніть ☔, потім 💧, що зʼявиться всередині.',
+        text: '☔, і знову ☔, а потім ☔',
+        lib: [['☔', 'восени 💧 над Києвом'], ['💧', 'тихо падає дощ']],
+        after: 'Підстановки можуть бути вкладеними: ☔ розгорнулося в текст із 💧, який розгорнули далі. Декодер повторює крок, доки не лишиться жодного символу.' },
+      { title: 'Ланцюжок підстановок',
+        intro: 'Три записи, і два з них побудовані з іншого. Записи, що спираються на інші записи, є в BPE, Re-Pair і Sequitur; у LZ78 та LZW кожен запис додає лише один символ до попереднього.',
+        task: 'Розгортайте символи, доки в тексті не лишиться жодного.',
+        text: '💬 🙋 💬 🙋',
+        lib: [['💬', 'Усі кажуть: «🐘!»'], ['🙋', 'А ти 🐘.'], ['🐘', 'купи слона']],
+        after: 'Текст зменшився, але бібліотека теж коштує. Метод виграє, коли фрази довгі й часто повторюються.' },
+      { title: 'Пробіли й коми теж у записі',
+        intro: 'Запис у бібліотеці зберігається так, як написаний, разом із комою й пробілом наприкінці. Без них декодований текст злипся б.',
+        task: 'Підставте всі символи й перевірте коми в результаті.',
+        text: '⏰⏰⏰🔔🔔🔔час вставати',
+        lib: [['⏰', 'тик-так, '], ['🔔', 'дзінь-дзінь, ']],
+        after: 'Записи — це звичайний текст: кожен пробіл і кома всередині входять у заміну. Лапки в бібліотеці показують, де рядок починається й закінчується.' },
+      { title: 'Три рівні вкладеності',
+        intro: 'Записи можна складати стопкою: 🌅 містить 🌴, а той містить 🌊.',
+        task: 'Розгортайте зовні досередини. Помітьте, що відтінок темнішає з кожним рівнем.',
+        text: '🌅, 🌅, і знову 🌅',
+        lib: [['🌅', 'на світанку 🌴'], ['🌴', '🌊 вдарила в берег'], ['🌊', 'хвиля']],
+        after: 'Три рівні, а правило одне: замінюй символ його записом і повторюй, доки символів не лишиться.' },
+      { title: 'Спільна цеглинка',
+        intro: '🥧 і 🍵 обидва містять 🍎. Один запис обслуговує кілька інших.',
+        task: 'Розгорніть страви, потім яблука всередині них.',
+        text: 'на столі 🥧 і 🍵, на плиті 🥧 і 🍵, у печі 🥧',
+        lib: [['🥧', 'пиріг 🍎'], ['🍵', 'чай 🍎'], ['🍎', 'з яблуками']],
+        after: 'Цеглинку записано один раз, хоч скільки записів її використовують. Чим більше повторного використання, тим краще окупається бібліотека.' },
+      { title: 'Повторювані дані',
+        intro: 'Журнали, таблиці й конфігурації повторюють одні й ті самі фрагменти рядок за рядком. Тут два фрагменти покривають три рядки журналу.',
+        task: 'Підставте фрагменти й прочитайте журнал.',
+        text: '🚨91📟A; 🚨93📟B; 🚨95📟C',
+        lib: [['🚨', 'УВАГА: диск '], ['📟', '% на вузлі ']],
+        after: 'Машинні дані повні повторів, тому словникові методи працюють на них особливо добре.' },
+      { title: 'Розмітка',
+        intro: 'HTML постійно повторює теги, тому вебсервери стискають сторінки перед відправленням.',
+        task: 'Відновіть список.',
+        text: '🔖Чай🔚🔖Молоко🔚🔖Рис🔚🔖Сіль🔚',
+        lib: [['🔖', '<li class="item">'], ['🔚', '</li>']],
+        after: 'Чотири пункти потребували лише двох записів у бібліотеці. Що довший список, то кращий коефіцієнт.' },
+      { title: 'Коли це не окупається',
+        intro: 'Стиснення не безкоштовне. Символ замінює фразу вигідно, лише якщо вона достатньо довга й часто повторюється, щоб покрити вартість запису в бібліотеці.',
+        task: 'Відновіть текст і порівняйте розміри.',
+        text: '🙂 ні, 🙂 ні',
+        lib: [['🙂', 'ой']],
+        after: 'Запис коштує 3 символи, а економить лише 2, тому пакет став довшим. Короткі фрази, що повторюються двічі, рідко окупаються.' }
+    ],
+    en: [
+      { title: 'One library entry',
+        intro: 'The phrase “the cat” appears three times. In the compressed text each one is replaced by a single symbol, 🐱, and the phrase itself is stored once in the library.',
+        task: 'Drag the library entry onto each 🐱 in the text.',
+        text: '🐱 sat on the mat, 🐱 ate the rat, 🐱 took the hat',
+        lib: [['🐱', 'the cat']],
+        after: 'Every 🐱 is now the phrase from the library. The phrase is stored once, so the whole package is shorter than the original.' },
+      { title: 'Several entries',
+        intro: 'Now two phrases repeat. Each gets its own symbol and its own library entry.',
+        task: 'Substitute them in any order.',
+        text: '🛒 🐚, 🐚 🛒, 🛒 🐚 by the sea shore',
+        lib: [['🛒', 'she sells'], ['🐚', 'sea shells']],
+        after: 'Different phrases get different symbols. The library has two entries, and once substituted the text reads normally.' },
+      { title: 'An entry inside an entry',
+        intro: 'A library entry can contain another symbol.',
+        task: 'Expand ☔ first, then the 💧 that appears inside it.',
+        text: '☔ plain, ☔ hills, and ☔ coast',
+        lib: [['☔', 'the 💧 falls mainly on the'], ['💧', 'rain in spain']],
+        after: 'Substitutions can be nested: ☔ expanded into text that contained 💧, which was expanded in turn. A decoder repeats the step until no symbols are left.' },
+      { title: 'A chain of substitutions',
+        intro: 'Three entries, and one of them is built from the other two. Entries built from other entries appear in BPE, Re-Pair and Sequitur; in LZ78 and LZW each entry extends an earlier one by a single symbol.',
+        task: 'Keep expanding until no symbols are left in the text.',
+        text: 'how much 🌲 would a 🐹 🔨 if a 🐹 could 🔨 🌲',
+        lib: [['🐹', '🌲🔨'], ['🌲', 'wood'], ['🔨', 'chuck']],
+        after: 'The text shrank, but the library has a price. Compression pays off when phrases are long and repeat often.' },
+      { title: 'Spaces and commas count',
+        intro: 'A library entry is stored exactly as written, including the comma and space at its end. Without them the decoded text would run together.',
+        task: 'Substitute every symbol and check the commas in the result.',
+        text: '⏰⏰⏰🔔🔔🔔time to wake up',
+        lib: [['⏰', 'tick-tock, '], ['🔔', 'ding-dong, ']],
+        after: 'Entries are plain text: every space and comma inside them is part of the replacement. The quotes in the library mark where each string starts and ends.' },
+      { title: 'Three levels deep',
+        intro: 'Entries can be stacked: 🌅 contains 🌴, which contains 🌊.',
+        task: 'Expand from the outside in. Notice the tint getting darker with each level.',
+        text: '🌅, 🌅 and again 🌅',
+        lib: [['🌅', 'at dawn 🌴'], ['🌴', 'the 🌊 hit the shore'], ['🌊', 'wave']],
+        after: 'Three levels, one rule: replace a symbol by its entry and keep going until no symbols remain.' },
+      { title: 'A shared building block',
+        intro: '🥧 and 🍹 both contain 🍎. One entry serves several others.',
+        task: 'Expand the dishes, then the apples inside them.',
+        text: '🥧 or 🍹, 🥧 and 🍹, but never 🥧 without 🍹',
+        lib: [['🥧', '🍎 pie'], ['🍹', '🍎 juice'], ['🍎', 'apple']],
+        after: 'A building block is stored once however many entries use it. The more reuse, the more the library pays for itself.' },
+      { title: 'Repetitive data',
+        intro: 'Logs, tables and configs repeat the same fragments line after line. Here two fragments cover three log lines.',
+        task: 'Substitute the fragments and read the log.',
+        text: '🚨91📟a; 🚨93📟b; 🚨95📟c',
+        lib: [['🚨', 'WARN disk '], ['📟', '% on host-']],
+        after: 'Machine-generated data is full of repeats, which is why dictionary methods work so well on it.' },
+      { title: 'Markup',
+        intro: 'HTML repeats its tags over and over, so web servers compress pages before sending them.',
+        task: 'Restore the list.',
+        text: '🔖Tea🔚🔖Milk🔚🔖Rice🔚🔖Salt🔚',
+        lib: [['🔖', '<li class="item">'], ['🔚', '</li>']],
+        after: 'Four items needed only two library entries. The longer the list grows, the better the ratio gets.' },
+      { title: 'When it does not pay off',
+        intro: 'Compression is not free. A symbol replaces a phrase profitably only if the phrase is long enough and repeats often enough to cover the cost of its library entry.',
+        task: 'Restore the text and compare the sizes.',
+        text: '🙂 no, 🙂 no',
+        lib: [['🙂', 'oh']],
+        after: 'The entry costs 3 characters and saves only 2, so the package got longer. Short phrases that repeat twice rarely pay off.' }
+    ]
+  };
+  LES.en[3].text = 'how much 🌲 would a 🐹 🔨 if a 🐹 could 🔨 🌲';
+
+  var S = { lang: 'uk', i: 0, nodes: [], lib: {}, emo: [], re: null, armed: null, solved: false, used: {}, done: {}, suppressUntil: 0 };
+
+  function t(k) { return T[S.lang][k]; }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function len(s) { return Array.from(s).length; }
+
+  function parse(str, depth) {
+    var out = [];
+    str.split(S.re).forEach(function (p, j) {
+      if (!p) return;
+      if (j % 2) out.push({ k: 'tok', e: p, d: depth }); else out.push({ k: 'txt', s: p, d: depth });
+    });
+    return out;
+  }
+  function expandAll(str) {
+    var g = new RegExp(S.emo.join('|'), 'g');
+    return str.replace(g, function (m) { return expandAll(S.lib[m]); });
+  }
+  function countTok(e) { return S.nodes.filter(function (n) { return n.k === 'tok' && n.e === e; }).length; }
+
+  function applyLang() {
+    document.documentElement.lang = S.lang;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-t]'), function (el) { el.textContent = t(el.getAttribute('data-t')); });
+    $('l-uk').setAttribute('aria-pressed', String(S.lang === 'uk'));
+    $('l-en').setAttribute('aria-pressed', String(S.lang === 'en'));
+  }
+  function say(text, bad) { var m = $('msg'); m.textContent = text; m.className = 'msg' + (bad ? ' bad' : ''); }
+
+  function renderSteps() {
+    $('steps').innerHTML = LES[S.lang].map(function (L, i) {
+      return '<button type="button" class="step' + (i === S.i ? ' on' : '') + (S.done[S.lang + i] ? ' ok' : '') + '" data-i="' + i + '" aria-current="' + (i === S.i) + '" aria-label="' + esc(t('lesson') + ' ' + (i + 1) + ': ' + L.title) + '">' + (i + 1) + '</button>';
+    }).join('');
+  }
+  function renderDoc() {
+    var h = '';
+    S.nodes.forEach(function (n, i) {
+      var x = n.d ? ' x' + Math.min(n.d, 3) : '';
+      if (n.k === 'txt') h += '<span class="t' + x + (n.fresh ? ' pop' : '') + '">' + esc(n.s) + '</span>';
+      else h += '<button type="button" class="tok' + x + '" data-i="' + i + '" aria-label="' + esc(t('tokLabel')(n.e)) + '">' + n.e + '</button>';
+      n.fresh = false;
+    });
+    $('doc').innerHTML = h;
+    $('doc').classList.toggle('armed', S.armed !== null);
+  }
+  function renderLib() {
+    $('lib').innerHTML = S.emo.map(function (e) {
+      var n = countTok(e);
+      var cnt = n ? '×' + n : (S.used[e] ? '✓' : '—');
+      return '<button type="button" class="entry" data-e="' + e + '" aria-pressed="' + (S.armed === e) + '"><span class="em">' + e + '</span><span class="eq">=</span><span class="str">“' + esc(S.lib[e]) + '”</span><span class="cnt' + (!n && S.used[e] ? ' ok' : '') + '">' + cnt + '</span></button>';
+    }).join('');
+  }
+  function renderAll() { renderSteps(); renderDoc(); renderLib(); $('step').disabled = S.solved; }
+
+  function startLesson(i) {
+    S.i = i;
+    var L = LES[S.lang][i];
+    S.lib = {}; S.emo = [];
+    L.lib.forEach(function (p) { S.lib[p[0]] = p[1]; S.emo.push(p[0]); });
+    S.re = new RegExp('(' + S.emo.join('|') + ')');
+    S.nodes = parse(L.text, 0);
+    S.used = {}; S.armed = null; S.solved = false;
+    $('l-title').textContent = t('lesson') + ' ' + (i + 1) + ' · ' + L.title;
+    $('l-intro').textContent = L.intro;
+    $('l-task').textContent = L.task;
+    $('res').hidden = true;
+    say(t('tip'));
+    renderAll();
+  }
+
+  function place(i, e) {
+    var node = S.nodes[i];
+    if (S.solved || !node || node.k !== 'tok') return;
+    if (node.e !== e) {
+      say(t('wrong')(node.e, e), true);
+      var el = $('doc').querySelector('.tok[data-i="' + i + '"]');
+      if (el) { el.classList.add('no'); setTimeout(function () { el.classList.remove('no'); }, 400); }
+      return;
+    }
+    S.used[e] = 1;
+    var rep = parse(S.lib[e], node.d + 1);
+    rep.forEach(function (n) { n.fresh = true; });
+    S.nodes.splice.apply(S.nodes, [i, 1].concat(rep));
+    S.armed = null;
+    say('');
+    renderAll();
+    if (!S.nodes.some(function (n) { return n.k === 'tok'; })) finish();
+  }
+
+  function finish() {
+    S.solved = true; S.done[S.lang + S.i] = true;
+    var L = LES[S.lang][S.i];
+    var orig = len(expandAll(L.text)), txt = len(L.text), lib = 0;
+    L.lib.forEach(function (p) { lib += 1 + len(p[1]); });
+    var ratio = orig / (txt + lib);
+    $('r-status').textContent = t('done');
+    $('r-after').textContent = L.after;
+    $('comp').innerHTML = '<div class="label">' + t('comp') + '</div><div class="ratio' + (ratio < 0.9999 ? ' bad' : '') + '">' + ratio.toFixed(2).replace('.', ',') + ':1</div><div class="meta">' + esc(t('meta')(orig, txt, lib)) + '</div>';
+    $('next').textContent = S.i + 1 < LES[S.lang].length ? t('next') : t('again');
+    $('res').hidden = false;
+    renderAll();
+    var calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    $('res').scrollIntoView({ block: 'nearest', behavior: calm ? 'auto' : 'smooth' });
+  }
+
+  /* drag and tap */
+  var drag = null, overEl = null;
+  function tokAt(x, y) { var el = document.elementFromPoint(x, y); return el && el.closest ? el.closest('.tok') : null; }
+  function setOver(el) { if (overEl && overEl !== el) overEl.classList.remove('over'); overEl = el; if (el) el.classList.add('over'); }
+  function endDrag() {
+    if (!drag) return;
+    if (drag.ghost && drag.ghost.parentNode) drag.ghost.parentNode.removeChild(drag.ghost);
+    drag.row.classList.remove('lifted');
+    setOver(null); drag = null;
+  }
+  var lib = $('lib');
+  lib.addEventListener('pointerdown', function (e) {
+    var row = e.target.closest('.entry');
+    if (!row || S.solved || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    drag = { row: row, e: row.dataset.e, x: e.clientX, y: e.clientY, moved: false, ghost: null, id: e.pointerId, touch: e.pointerType !== 'mouse' };
+    try { row.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  lib.addEventListener('pointermove', function (e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (!drag.moved) {
+      if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return;
+      drag.moved = true;
+      var g = document.createElement('div');
+      g.className = 'ghost'; g.textContent = drag.e + ' = ' + S.lib[drag.e];
+      document.body.appendChild(g);
+      drag.ghost = g; drag.row.classList.add('lifted');
+    }
+    drag.ghost.style.transform = 'translate(' + e.clientX + 'px,' + e.clientY + 'px) translate(-50%,' + (drag.touch ? '-160%' : '-130%') + ')';
+    setOver(tokAt(e.clientX, e.clientY));
+  });
+  lib.addEventListener('pointerup', function (e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    var d = drag;
+    if (d.moved) {
+      var tk = tokAt(e.clientX, e.clientY);
+      S.suppressUntil = performance.now() + 300;
+      endDrag();
+      if (tk) place(+tk.dataset.i, d.e);
+    } else { endDrag(); }
+  });
+  lib.addEventListener('pointercancel', endDrag);
+  lib.addEventListener('click', function (e) {
+    if (performance.now() < S.suppressUntil) return;
+    var row = e.target.closest('.entry');
+    if (!row || S.solved) return;
+    S.armed = S.armed === row.dataset.e ? null : row.dataset.e;
+    renderLib(); $('doc').classList.toggle('armed', S.armed !== null);
+  });
+  $('doc').addEventListener('click', function (e) {
+    var tk = e.target.closest('.tok');
+    if (!tk) return;
+    if (S.armed === null) { say(t('tip')); return; }
+    place(+tk.dataset.i, S.armed);
+  });
+  $('step').addEventListener('click', function () {
+    if (S.solved) return;
+    for (var i = 0; i < S.nodes.length; i++) {
+      if (S.nodes[i].k === 'tok') {
+        var e = S.nodes[i].e;
+        place(i, e);
+        var row = $('lib').querySelector('.entry[data-e="' + e + '"]');
+        if (row) { row.classList.add('pulse'); setTimeout(function () { row.classList.remove('pulse'); }, 700); }
+        return;
+      }
+    }
+  });
+  $('reset').addEventListener('click', function () { startLesson(S.i); });
+  $('steps').addEventListener('click', function (e) {
+    var b = e.target.closest('.step');
+    if (b) startLesson(+b.dataset.i);
+  });
+  $('next').addEventListener('click', function () { startLesson(S.i + 1 < LES[S.lang].length ? S.i + 1 : 0); });
+  $('l-uk').addEventListener('click', function () { if (S.lang !== 'uk') { S.lang = 'uk'; applyLang(); startLesson(S.i); } });
+  $('l-en').addEventListener('click', function () { if (S.lang !== 'en') { S.lang = 'en'; applyLang(); startLesson(S.i); } });
+
+  applyLang();
+  startLesson(0);
+})();
+</script>
+
+</body></html>

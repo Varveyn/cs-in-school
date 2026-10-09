@@ -1,0 +1,343 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>RLE Match</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@500;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap">
+<style>
+/* Layout: one left-aligned column. A ruled "tape" card carries the string, four answers stack below, and a run-by-run breakdown opens after each pick. */
+:root{
+  --bg:#E8EBEF; --surface:#F7F8FA; --fg:#11141B; --muted:#586070; --line:#C5CBD4;
+  --accent:#2B50E6; --accent-ink:#FFFFFF;
+  --good:#12804A; --good-bg:#DDF3E7; --bad:#C92F2A; --bad-bg:#FBE1DF;
+  --cs:60%; --cl:42%; --cell-ink:#FFFFFF;
+  --font-display:'Onest',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1117; --surface:#161A22; --fg:#E7EAF0; --muted:#98A1B1; --line:#2A303B;
+    --accent:#86A0FF; --accent-ink:#0E1117;
+    --good:#55D08F; --good-bg:#12301F; --bad:#FF7D76; --bad-bg:#3A1815;
+    --cs:70%; --cl:68%; --cell-ink:#0B0E14;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1117; --surface:#161A22; --fg:#E7EAF0; --muted:#98A1B1; --line:#2A303B;
+  --accent:#86A0FF; --accent-ink:#0E1117;
+  --good:#55D08F; --good-bg:#12301F; --bad:#FF7D76; --bad-bg:#3A1815;
+  --cs:70%; --cl:68%; --cell-ink:#0B0E14;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-display);font-size:15px;line-height:1.45;padding-inline:16px;padding-block:20px 48px}
+button{font:inherit;color:inherit;cursor:pointer}
+.app{max-width:640px;margin-inline:auto;display:grid;gap:16px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+h1{margin:0;font:800 28px/1.1 var(--font-display);letter-spacing:-.02em;text-wrap:balance}
+.how{margin:6px 0 0;color:var(--muted);font-size:14px}
+.how b{font:700 13px var(--font-mono);color:var(--fg);letter-spacing:.04em}
+.d{color:var(--accent)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;color:var(--muted);padding:8px 14px;font-weight:700;font-size:13px}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.seg button:focus-visible,.opt:focus-visible,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stats{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.1em}
+.stats b{margin-left:6px;color:var(--fg);font:700 15px var(--font-mono);letter-spacing:0;font-variant-numeric:tabular-nums}
+.stats .time{margin-left:auto}
+.timer{height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+.timer i{display:block;height:100%;background:var(--accent);transform-origin:left center;transition:transform .1s linear}
+.timer.low i{background:var(--bad)}
+.prompt{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:0 16px 18px;overflow:hidden}
+.ruler{height:8px;margin:0 -16px 12px;background:repeating-linear-gradient(90deg,var(--line) 0 1px,transparent 1px 8px);border-bottom:1px solid var(--line)}
+.label{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+.code{margin-top:8px;font:700 clamp(26px,7.5vw,38px)/1.25 var(--font-mono);letter-spacing:.05em;overflow-wrap:anywhere;min-height:1.25em}
+.opts{display:grid;gap:10px}
+.opt{display:flex;align-items:center;gap:12px;width:100%;min-height:56px;padding:12px 14px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:10px;font:600 clamp(16px,4.6vw,20px)/1.3 var(--font-mono)}
+.opt kbd{flex:none;display:grid;place-items:center;width:22px;height:22px;border:1px solid var(--line);border-radius:6px;font:600 12px var(--font-mono);color:var(--muted)}
+.opt .txt{flex:1;min-width:0;letter-spacing:.05em;overflow-wrap:anywhere}
+.opt:hover{border-color:var(--accent)}
+.opt[aria-disabled="true"]{cursor:default}
+.opt[aria-disabled="true"]:hover{border-color:var(--line)}
+.opt.ok,.opt.ok:hover{border-color:var(--good);background:var(--good-bg)}
+.opt.bad,.opt.bad:hover{border-color:var(--bad);background:var(--bad-bg)}
+.opt.dim{opacity:.55}
+.opt.ok::after{content:"\2713";color:var(--good);font-weight:800}
+.opt.bad::after{content:"\2715";color:var(--bad);font-weight:800}
+.fb{display:grid;gap:12px}
+.status{font:800 20px var(--font-display)}
+.status.ok{color:var(--good)} .status.bad{color:var(--bad)}
+.comp{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px}
+.comp .label{flex-basis:100%}
+.comp .ratio{font:800 28px/1.1 var(--font-mono);font-variant-numeric:tabular-nums}
+.comp .ratio.ok{color:var(--good)} .comp .ratio.bad{color:var(--bad)}
+.comp .meta{color:var(--muted);font-size:13px;min-width:0}
+.comp .pair{flex-basis:100%;font:600 14px var(--font-mono);letter-spacing:.04em;overflow-wrap:anywhere}
+.runs{display:flex;flex-wrap:wrap;gap:12px 16px}
+.run{display:grid;gap:4px;min-width:0}
+.tok{font:700 14px var(--font-mono);letter-spacing:.04em}
+.cells{display:flex;gap:2px}
+.cell{display:grid;place-items:center;width:22px;height:26px;border-radius:3px;background:hsl(var(--h) var(--cs) var(--cl));color:var(--cell-ink);font:700 12px var(--font-mono);font-style:normal}
+.btn{justify-self:start;min-width:140px;padding:12px 20px;border:0;border-radius:8px;background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:15px}
+.end{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px 16px;display:grid;gap:10px;justify-items:start}
+.end .big{font:800 clamp(44px,14vw,64px)/1 var(--font-mono);font-variant-numeric:tabular-nums}
+.end p{margin:0;color:var(--muted)}
+.end .tag{font:700 13px var(--font-mono);color:var(--accent);letter-spacing:.06em;text-transform:uppercase}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<main class="app">
+  <header class="top">
+    <div>
+      <h1>RLE Match</h1>
+      <p class="how">Кодування серій (RLE): <b><span class="d">кількість</span>+символ</b>. <b><span class="d">3</span>A<span class="d">2</span>B</b> = <b>AAABB</b>.</p>
+    </div>
+    <div class="seg" role="group" aria-label="Режим">
+      <button type="button" id="m-dec" aria-pressed="true">Декодувати</button>
+      <button type="button" id="m-enc" aria-pressed="false">Кодувати</button>
+    </div>
+  </header>
+
+  <div class="stats" aria-live="off">
+    <span>Раунд<b id="s-round">1/10</b></span>
+    <span>Рівень<b id="s-level">1</b></span>
+    <span>Рахунок<b id="s-score">0</b></span>
+    <span>Підряд<b id="s-streak">0</b></span>
+    <span class="time"><b id="s-time">20 с</b></span>
+  </div>
+
+  <div id="play" class="app" style="gap:16px">
+    <div class="timer" id="timer" aria-hidden="true"><i id="bar"></i></div>
+    <section class="prompt">
+      <div class="ruler" aria-hidden="true"></div>
+      <div class="label" id="q-label">Код</div>
+      <div class="code" id="q"></div>
+    </section>
+    <div class="opts" id="opts" role="group" aria-label="Варіанти"></div>
+    <section class="fb" id="fb" hidden aria-live="polite">
+      <div class="status" id="status"></div>
+      <div class="comp" id="comp"></div>
+      <div>
+        <div class="label" style="margin-bottom:8px">Серії</div>
+        <div class="runs" id="runs"></div>
+      </div>
+      <button type="button" class="btn" id="next">Далі</button>
+    </section>
+  </div>
+
+  <section class="end" id="end" hidden>
+    <div class="tag" id="e-best"></div>
+    <div class="big" id="e-score">0</div>
+    <p id="e-acc"></p>
+    <button type="button" class="btn" id="again">Грати знову</button>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  document.documentElement.lang = 'uk';
+  var ROUNDS = 10;
+  var ALPHA = [null, 'ABC', 'ABCDE', 'ABCDEFGH'];
+  var HUE = { A: 220, B: 350, C: 150, D: 35, E: 280, F: 190, G: 85, H: 320 };
+  var CFG = { 1: { runs: [3, 4], max: 4, time: 20 }, 2: { runs: [4, 5], max: 6, time: 18 }, 3: { runs: [5, 6], max: 7, time: 18 } };
+
+  var S = { mode: 'dec', round: 0, score: 0, streak: 0, correct: 0, cur: null, answered: false, ended: false, remaining: 0, total: 1, last: 0, timerId: null };
+
+  function rnd(n) { return Math.floor(Math.random() * n); }
+  function pick(a) { return a[rnd(a.length)]; }
+  function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = rnd(i + 1), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  function levelFor(r) { return r < 3 ? 1 : r < 7 ? 2 : 3; }
+
+  function genRuns(lv) {
+    var c = CFG[lv], a = ALPHA[lv], n = c.runs[0] + rnd(c.runs[1] - c.runs[0] + 1), runs = [];
+    for (var i = 0; i < n; i++) {
+      var ch;
+      do { ch = pick(a.split('')); } while (runs.length && runs[runs.length - 1][0] === ch);
+      runs.push([ch, 1 + rnd(c.max)]);
+    }
+    return runs;
+  }
+  function norm(runs) {
+    var out = [];
+    runs.forEach(function (r) {
+      if (r[1] < 1) return;
+      var l = out[out.length - 1];
+      if (l && l[0] === r[0]) l[1] += r[1]; else out.push([r[0], r[1]]);
+    });
+    return out;
+  }
+  function dec(runs) { return runs.map(function (r) { return new Array(r[1] + 1).join(r[0]); }).join(''); }
+  function enc(runs) { return runs.map(function (r) { return r[1] + r[0]; }).join(''); }
+  function fmt(s) { return s.replace(/\d+/g, function (m) { return '<span class="d">' + m + '</span>'; }); }
+
+  var MUT = [
+    function (r) { var i = rnd(r.length); r[i][1] += Math.random() < 0.5 ? 1 : -1; return r; },
+    function (r) { if (r.length < 2) return r; var i = rnd(r.length - 1), t = r[i][1]; r[i][1] = r[i + 1][1]; r[i + 1][1] = t; return r; },
+    function (r, a) { var i = rnd(r.length), o = a.split('').filter(function (c) { return c !== r[i][0]; }); r[i][0] = pick(o); return r; },
+    function (r) { if (r.length < 2) return r; var i = rnd(r.length - 1), t = r[i]; r[i] = r[i + 1]; r[i + 1] = t; return r; },
+    function (r) { return r.reverse(); }
+  ];
+
+  function makeOptions(correct, a) {
+    var seen = {}; seen[dec(correct)] = 1;
+    var opts = [correct], guard = 0;
+    while (opts.length < 4 && guard++ < 300) {
+      var r = correct.map(function (x) { return [x[0], x[1]]; });
+      var times = Math.random() < 0.25 ? 2 : 1;
+      for (var t = 0; t < times; t++) r = pick(MUT)(r, a);
+      r = norm(r);
+      if (!r.length || r.some(function (x) { return x[1] > 9; })) continue;
+      var k = dec(r);
+      if (seen[k]) continue;
+      seen[k] = 1; opts.push(r);
+    }
+    return opts;
+  }
+
+  function bestKey() { return 'rle-match-best-' + S.mode; }
+  function loadBest() { try { return +localStorage.getItem(bestKey()) || 0; } catch (e) { return 0; } }
+  function saveBest(v) { try { localStorage.setItem(bestKey(), String(v)); } catch (e) {} }
+
+  function updateStats() {
+    $('s-round').textContent = Math.min(S.round + 1, ROUNDS) + '/' + ROUNDS;
+    $('s-level').textContent = levelFor(Math.min(S.round, ROUNDS - 1));
+    $('s-score').textContent = S.score;
+    $('s-streak').textContent = S.streak;
+  }
+
+  function stopTimer() { if (S.timerId) { clearInterval(S.timerId); S.timerId = null; } }
+  function drawTimer() {
+    $('bar').style.transform = 'scaleX(' + Math.max(0, S.remaining / S.total) + ')';
+    $('s-time').textContent = Math.max(0, Math.ceil(S.remaining)) + ' с';
+    $('timer').classList.toggle('low', S.remaining / S.total < 0.25);
+  }
+  function startTimer(sec) {
+    stopTimer();
+    S.total = S.remaining = sec; S.last = performance.now();
+    drawTimer();
+    S.timerId = setInterval(function () {
+      var now = performance.now(), dt = (now - S.last) / 1000;
+      S.last = now;
+      if (document.hidden || S.answered) return;
+      S.remaining -= Math.min(dt, 0.5);
+      drawTimer();
+      if (S.remaining <= 0) answer(-1);
+    }, 100);
+  }
+
+  function startRound() {
+    var lv = levelFor(S.round), runs = genRuns(lv);
+    var opts = shuffle(makeOptions(runs, ALPHA[lv]));
+    S.cur = { runs: runs, opts: opts, lv: lv, idx: opts.indexOf(runs) };
+    S.answered = false;
+    var d = S.mode === 'dec';
+    $('q-label').textContent = d ? 'Код · знайдіть оригінал' : 'Оригінал · знайдіть код';
+    $('q').innerHTML = fmt(d ? enc(runs) : dec(runs));
+    $('opts').innerHTML = opts.map(function (o, i) {
+      return '<button type="button" class="opt" data-i="' + i + '"><kbd>' + (i + 1) + '</kbd><span class="txt">' + fmt(d ? dec(o) : enc(o)) + '</span></button>';
+    }).join('');
+    $('fb').hidden = true;
+    updateStats();
+    startTimer(CFG[lv].time);
+  }
+
+  function breakdown(runs) {
+    return runs.map(function (r) {
+      var cells = '';
+      for (var i = 0; i < r[1]; i++) cells += '<i class="cell" style="--h:' + HUE[r[0]] + '">' + r[0] + '</i>';
+      return '<div class="run"><div class="tok"><span class="d">' + r[1] + '</span>' + r[0] + '</div><div class="cells">' + cells + '</div></div>';
+    }).join('');
+  }
+
+  function answer(i) {
+    if (S.answered || S.ended) return;
+    S.answered = true; stopTimer();
+    var ok = i === S.cur.idx, gain = 0;
+    if (ok) {
+      S.streak++; S.correct++;
+      gain = 100 + Math.round(S.remaining / S.total * 50) + Math.min(S.streak - 1, 5) * 10;
+      S.score += gain;
+    } else { S.streak = 0; }
+    Array.prototype.forEach.call($('opts').children, function (b, k) {
+      b.setAttribute('aria-disabled', 'true');
+      if (k === S.cur.idx) b.classList.add('ok');
+      else if (k === i) b.classList.add('bad');
+      else b.classList.add('dim');
+    });
+    var st = $('status');
+    st.className = 'status ' + (ok ? 'ok' : 'bad');
+    st.textContent = ok ? 'Правильно +' + gain : (i < 0 ? 'Час вийшов' : 'Не зовсім');
+    var ol = dec(S.cur.runs).length, el = enc(S.cur.runs).length, ratio = ol / el, sv = Math.round((1 - el / ol) * 100);
+    var rc = ratio > 1.0001 ? 'ok' : (ratio < 0.9999 ? 'bad' : '');
+    $('comp').innerHTML = '<div class="label">Стиснення</div>' +
+      '<div class="ratio ' + rc + '">' + ratio.toFixed(2).replace('.', ',') + ':1</div>' +
+      '<div class="meta">оригінал ' + ol + ' симв. → код ' + el + ' симв. · ' + (sv > 0 ? 'економія ' + sv + '%' : sv < 0 ? 'збільшення на ' + (-sv) + '%' : 'без змін') + '</div>' +
+      '<div class="pair">' + fmt(dec(S.cur.runs)) + ' ↔ ' + fmt(enc(S.cur.runs)) + '</div>';
+    $('runs').innerHTML = breakdown(S.cur.runs);
+    $('next').textContent = S.round + 1 >= ROUNDS ? 'Результат' : 'Далі';
+    $('fb').hidden = false;
+    updateStats();
+    var nb = $('next');
+    nb.focus({ preventScroll: true });
+    var calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    $('fb').scrollIntoView({ block: 'nearest', behavior: calm ? 'auto' : 'smooth' });
+  }
+
+  function next() {
+    if (!S.answered) return;
+    S.round++;
+    if (S.round >= ROUNDS) endGame(); else startRound();
+  }
+
+  function endGame() {
+    S.ended = true; stopTimer();
+    var prev = loadBest(), isBest = S.score > prev;
+    if (isBest) saveBest(S.score);
+    updateStats();
+    $('play').hidden = true; $('end').hidden = false;
+    $('e-score').textContent = S.score;
+    $('e-acc').textContent = S.correct + ' з ' + ROUNDS + ' правильно';
+    $('e-best').textContent = isBest ? 'Новий рекорд' : 'Рекорд ' + prev;
+    $('s-time').textContent = '';
+    $('again').focus({ preventScroll: true });
+  }
+
+  function newGame() {
+    stopTimer();
+    S.round = 0; S.score = 0; S.streak = 0; S.correct = 0; S.ended = false;
+    $('end').hidden = true; $('play').hidden = false;
+    startRound();
+  }
+
+  function setMode(m) {
+    S.mode = m;
+    $('m-dec').setAttribute('aria-pressed', String(m === 'dec'));
+    $('m-enc').setAttribute('aria-pressed', String(m === 'enc'));
+    newGame();
+  }
+
+  $('opts').addEventListener('click', function (e) {
+    var b = e.target.closest('.opt');
+    if (b) answer(+b.dataset.i);
+  });
+  $('next').addEventListener('click', next);
+  $('again').addEventListener('click', newGame);
+  $('m-dec').addEventListener('click', function () { if (S.mode !== 'dec') setMode('dec'); });
+  $('m-enc').addEventListener('click', function () { if (S.mode !== 'enc') setMode('enc'); });
+  document.addEventListener('keydown', function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key >= '1' && e.key <= '4' && !S.answered && !S.ended) {
+      var i = +e.key - 1;
+      if (i < S.cur.opts.length) answer(i);
+    } else if ((e.key === 'Enter' || e.key === ' ') && !(e.target && e.target.tagName === 'BUTTON')) {
+      if (S.ended) newGame(); else if (S.answered) { e.preventDefault(); next(); }
+    }
+  });
+
+  newGame();
+})();
+</script>
+
+</body></html>
