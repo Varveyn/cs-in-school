@@ -1,0 +1,601 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Стискальня файлів</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@500;700&display=swap">
+<style>
+/* Layout: стійка з дисковими відсіками. Файл лежить у лівому відсіку, операції-плитки праворуч; усе в темній «серверній» палітрі з бурштиновим LED. */
+:root{
+  --bg:#0d1417; --dot:#17242a; --panel:#141f24; --panel2:#1a2a31; --line:#2b414a;
+  --fg:#e7f0ee; --mute:#8ea6ad;
+  --led:#ffb23e; --cool:#4fd6c8; --cool-bg:#10302e; --bad:#ff6a58; --ok:#7bdc92;
+  --r-common:#9ba9ad; --r-good:#6fd08f; --r-rare:#5ba8ff; --r-unique:#c78cff; --r-myth:#ff8a4a;
+  --f-display:'Unbounded','IBM Plex Sans',system-ui,sans-serif;
+  --f-body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background-color:var(--bg);background-image:radial-gradient(var(--dot) 1px,transparent 1px);background-size:22px 22px;
+  color:var(--fg);font:15px/1.5 var(--f-body);padding-block:18px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:980px;margin:0 auto;display:grid;gap:18px}
+h1,h2,h3,p{margin:0}
+h1,h2{font-family:var(--f-display);font-weight:700;letter-spacing:-.01em;text-wrap:balance;line-height:1.2}
+h1{font-size:clamp(24px,5vw,38px)} h2{font-size:clamp(18px,3.4vw,24px)}
+.top{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:14px}
+.brand{font:700 18px var(--f-display);display:flex;align-items:center;gap:10px}
+.led{width:10px;height:10px;border-radius:50%;background:var(--led);box-shadow:0 0 10px var(--led)}
+.steps{display:flex;gap:6px;flex-wrap:wrap;font:500 12px var(--f-mono)}
+.steps span{padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--mute)}
+.steps .done{color:var(--fg)}
+.steps .on{color:#1a1200;background:var(--led);border-color:var(--led)}
+.pts{font:600 14px var(--f-mono);padding:5px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-variant-numeric:tabular-nums}
+.screen{display:grid;gap:16px;animation:in .35s ease}
+@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.eyebrow{font:500 12px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+.lead{color:var(--mute);max-width:65ch}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+.btn{font:600 14px var(--f-body);padding:11px 18px;border-radius:10px;border:1px solid var(--led);background:var(--led);color:#1a1200;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--fg);border-color:var(--line)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,.tile:focus-visible,.opt:focus-visible,.item:focus-visible{outline:2px solid var(--cool);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+/* pictogram */
+.pict{display:inline-flex;flex-direction:column;align-items:center;gap:1px;padding:8px 10px;min-width:62px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);user-select:none;-webkit-user-select:none}
+.pict .em{font-size:28px;line-height:1.15}
+.pict .ext{font:600 11px var(--f-mono);letter-spacing:.06em}
+.pict .sub{font:500 9px var(--f-mono);color:var(--mute);letter-spacing:.04em}
+.pict.lg{padding:14px 20px;min-width:104px}
+.pict.lg .em{font-size:56px}.pict.lg .ext{font-size:15px}.pict.lg .sub{font-size:11px}
+.pict.file{cursor:grab;touch-action:none;border-color:var(--cool);box-shadow:0 0 0 3px var(--cool-bg)}
+.pict.file.dragging{opacity:.25}
+.pict.ghost{position:fixed;left:0;top:0;z-index:60;pointer-events:none;cursor:grabbing;box-shadow:0 14px 30px #000a;border-color:var(--led)}
+.pict.pop{animation:pop .45s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pop{0%{transform:scale(1.25) rotate(-4deg)}100%{transform:none}}
+/* intro */
+.catalog{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.kind{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:8px;align-content:start}
+.kind b{font:600 13px var(--f-body)}
+.kind .picts{display:flex;flex-wrap:wrap;gap:6px}
+.kind .pict{min-width:52px;padding:6px 7px}.kind .pict .em{font-size:22px}
+.stagelist{display:grid;gap:8px;padding-left:0;list-style:none;margin:0}
+.stagelist li{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:baseline}
+.stagelist i{font:600 12px var(--f-mono);font-style:normal;color:var(--led)}
+/* quiz */
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.opt{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;min-height:84px;padding:12px;border-radius:12px;border:1.5px solid var(--line);background:var(--panel);color:var(--fg);font:500 15px var(--f-body);cursor:pointer}
+.opt:hover:not(:disabled){border-color:var(--cool)}
+.opt.right{border-color:var(--ok);background:#12301c}.opt.wrong{border-color:var(--bad);background:#34171a}
+.opt:disabled{cursor:default}
+.explain{padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--panel2)}
+.prog{height:6px;border-radius:9px;background:#0a1013;border:1px solid var(--line);overflow:hidden}
+.prog i{display:block;height:100%;background:var(--led);transition:width .3s}
+/* round */
+.rhead{display:flex;flex-wrap:wrap;gap:10px 18px;justify-content:space-between;align-items:end}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:500 12px var(--f-mono);padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:var(--panel)}
+.chip.warn{border-color:var(--led);color:var(--led)}
+.stage{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:16px;align-items:start}
+@media(max-width:760px){.stage{grid-template-columns:1fr}}
+.bay{display:grid;gap:12px}
+.slot{min-height:176px;display:grid;place-items:center;align-content:center;gap:10px;border:1.5px dashed var(--line);border-radius:12px;background:#0f191d;padding:14px}
+.fname{font:500 13px var(--f-mono);color:var(--mute);overflow-wrap:anywhere;text-align:center}
+.size{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.size .num{font:700 26px var(--f-display);font-variant-numeric:tabular-nums}
+.size .delta{font:600 14px var(--f-mono)}
+.delta.good{color:var(--ok)}.delta.bad{color:var(--bad)}
+.bar{position:relative;height:10px;border-radius:99px;background:#0a1013;border:1px solid var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--cool);transition:width .5s}
+.qrow{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;font:500 12px var(--f-mono);color:var(--mute)}
+.bar.q i{background:var(--ok)}.bar.q.low i{background:var(--bad)}
+.bar .mark{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--led)}
+.msg{min-height:44px;font-size:14px;padding:8px 12px;border-radius:10px;background:var(--panel2);border:1px solid var(--line)}
+.msg.ok{border-color:#2d6b49}.msg.bad{border-color:#8a3a33;color:#ffb4a9}
+.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.tiles{display:grid;gap:14px}
+.tgroup{display:grid;gap:8px}
+.tgroup h3{font:500 12px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px}
+.tile{display:grid;gap:2px;justify-items:center;padding:14px 8px;border:1.5px dashed var(--line);border-radius:12px;background:var(--panel);color:var(--fg);cursor:pointer;text-align:center;min-width:0}
+.tile .tl{font:600 14px var(--f-mono);overflow-wrap:anywhere}
+.tile .tn{font-size:11px;color:var(--mute)}
+.tile.lossy .tn{color:var(--led)}
+.tile:hover,.tile.over{border-color:var(--cool);background:var(--cool-bg);border-style:solid}
+.log{margin:0;padding:0;list-style:none;display:grid;gap:4px;font:400 12px var(--f-mono);color:var(--mute)}
+.log li span{color:var(--fg)}
+.hint{font-size:13px;color:var(--mute)}
+/* result */
+.cmp{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;justify-items:center}
+@media(max-width:520px){.cmp{grid-template-columns:1fr}}
+.cmp .arrow{font:600 22px var(--f-mono);color:var(--mute)}
+.kv{display:grid;grid-template-columns:1fr auto;gap:6px 14px;font-size:14px}
+.kv b{font:600 14px var(--f-mono);text-align:right;font-variant-numeric:tabular-nums}
+.big{font:700 clamp(28px,6vw,44px) var(--f-display);color:var(--led)}
+/* shop */
+.slotrow{display:grid;gap:10px}
+.slotrow h3{font:600 14px var(--f-body);display:flex;gap:8px;align-items:baseline}
+.slotrow h3 small{font:400 12px var(--f-mono);color:var(--mute)}
+.items{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.item{display:grid;gap:4px;text-align:left;padding:12px;border-radius:12px;border:1.5px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer;min-width:0}
+.item .rar{font:600 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--rc)}
+.item .nm{font:600 14px var(--f-body);overflow-wrap:anywhere}
+.item .ds{font-size:12px;color:var(--mute)}
+.item .pr{font:600 13px var(--f-mono);color:var(--led)}
+.item.sel{border-color:var(--rc);background:var(--panel2);box-shadow:0 0 0 2px var(--rc) inset}
+.item.poor{opacity:.5}
+.rc-common{--rc:var(--r-common)}.rc-good{--rc:var(--r-good)}.rc-rare{--rc:var(--r-rare)}.rc-unique{--rc:var(--r-unique)}.rc-myth{--rc:var(--r-myth)}
+.stats{display:flex;flex-wrap:wrap;gap:8px 18px;font:500 13px var(--f-mono)}
+/* fight */
+.arena{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:520px){.arena{grid-template-columns:1fr}}
+.fighter{display:grid;gap:8px;justify-items:center;text-align:center;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+.fighter .face{font-size:64px;line-height:1}
+.fighter.hit{animation:shake .35s}
+.hp{width:100%;height:12px;border-radius:99px;background:#0a1013;border:1px solid var(--line);overflow:hidden}
+.hp i{display:block;height:100%;background:var(--ok);transition:width .4s}
+.hp.boss i{background:var(--bad)}
+.tag{font:600 13px var(--f-mono);padding:4px 10px;border:1px dashed var(--led);border-radius:6px;color:var(--led);font-variant-numeric:tabular-nums}
+.flog{height:190px;overflow:auto;padding:12px;border:1px solid var(--line);border-radius:12px;background:#0a1013;font:400 12.5px var(--f-mono);display:grid;gap:3px;align-content:start}
+.flog .h{color:var(--cool)}.flog .b{color:#ffb4a9}.flog .l{color:var(--ok)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+.tw{overflow-x:auto}
+th,td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font:500 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+td.n{font-family:var(--f-mono);text-align:right}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top" id="hdr"></header>
+  <main id="app"></main>
+</div>
+
+<script>
+'use strict';
+/* ============ ЛОГІКА (без DOM) ============ */
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const plural=(n,a,b,c)=>{const m=n%100,d=n%10;if(m>10&&m<20)return c;if(d===1)return a;if(d>1&&d<5)return b;return c;};
+const fmtSize=kb=>{const u=['КБ','МБ','ГБ','ТБ'];let v=kb,i=0;while(v>=1000&&i<3){v/=1000;i++;}
+  return (v>=100?v.toFixed(0):v>=10?v.toFixed(1):v.toFixed(2)).replace('.',',')+' '+u[i];};
+
+const KIND={text:{name:'Текст',em:'📄'},image:{name:'Зображення',em:'🖼️'},sound:{name:'Звук',em:'🔊'},video:{name:'Відео',em:'🎬'},binary:{name:'Бінарні дані',em:'⚙️'}};
+const ARC=[{ext:'7Z',name:'7z'},{ext:'ZIP',name:'ZIP'},{ext:'GZ',name:'GZip'}];
+
+/* r — розмір відносно «сирого» еталона типу; a — коефіцієнти архівації [7z, zip, gz]; q — втрата якості при кодуванні */
+const FMT={};
+const defF=(key,kind,ext,em,r,a,o)=>{FMT[key]=Object.assign({kind,ext,em,r,a,q:0},o||{});};
+defF('txt','text','TXT','📄',1,[.27,.36,.35]);
+defF('docx','text','DOCX','📝',.42,[.96,.99,1]);
+defF('html','text','HTML','🌐',1.3,[.22,.30,.29]);
+defF('bmp','image','BITMAP','🖼️',1,[.5,.6,.62]);
+defF('png','image','PNG','🎨',.45,[.98,.99,1]);
+defF('jpg','image','JPG','📷',.08,[1,1,1],{q:12});
+defF('heic','image','HEIC','🍏',.05,[1,1,1],{q:15});
+defF('wav','sound','WAV','🔊',1,[.85,.9,.91]);
+defF('flac','sound','FLAC','💿',.55,[1,1,1]);
+defF('mp3','sound','MP3','🎧',.1,[1,1,1],{q:20});
+defF('ogg','sound','OGG','🎶',.07,[1,1,1],{q:22});
+defF('mov','video','MOV','🎞️',1,[.97,.98,.99],{sub:'ProRes'});
+defF('mkv_ffv1','video','MKV','📼',.6,[.98,.99,1],{sub:'FFV1'});
+defF('mp4','video','MP4','🎬',.03,[1,1,1],{q:18,sub:'H.264'});
+defF('mkv','video','MKV','📼',.018,[1,1,1],{q:20,sub:'HEVC'});
+defF('webm','video','WEBM','🎥',.022,[1,1,1],{q:20,sub:'VP9'});
+[['exe','⚙️'],['dll','🧩']].forEach(([p,em])=>{
+  const E=p.toUpperCase();
+  defF(p,'binary',E,em,1,[.38,.45,.47]);
+  defF(p+'_s','binary',E,em,.6,[.40,.47,.49],{sub:'strip'});
+  defF(p+'_u','binary',E,em,.45,[.99,.995,1],{sub:'UPX'});
+  defF(p+'_su','binary',E,em,.3,[.99,.995,1],{sub:'strip+UPX'});
+  defF(p+'_x','binary',E,em,.1,[.99,.995,1],{q:100,sub:'зламано'});
+});
+
+const encTile=(to)=>({id:'enc:'+to,type:'encode',to,label:FMT[to].ext+(FMT[to].sub?' · '+FMT[to].sub:''),note:FMT[to].q?'з втратами':'без втрат'});
+const arcTiles=ARC.map((a,i)=>({id:'arc'+i,type:'archive',algo:i,label:a.name,note:'архів'}));
+const unpackTile={id:'unpack',type:'unpack',label:'Розпакувати',note:'з архіву'};
+const binTile=(id,label,note,map)=>({id,type:'encode',to:f=>map(f),label,note});
+const TILES={
+  text:[encTile('txt'),encTile('docx'),encTile('html')],
+  image:[encTile('bmp'),encTile('png'),encTile('jpg'),encTile('heic')],
+  sound:[encTile('wav'),encTile('flac'),encTile('mp3'),encTile('ogg')],
+  video:[encTile('mov'),encTile('mkv_ffv1'),encTile('mp4'),encTile('mkv'),encTile('webm')],
+  binary:[
+    binTile('bin:strip','Strip символів','без втрат',f=>({exe:'exe_s',exe_u:'exe_su'}[f]||f)),
+    binTile('bin:upx','UPX-пакер','без втрат',f=>({exe:'exe_u',exe_s:'exe_su'}[f]||f)),
+    binTile('bin:cut','Вирізати секції','ризик поломки',f=>f==='exe_x'?f:'exe_x')
+  ]
+};
+Object.keys(TILES).forEach(k=>{TILES[k]=TILES[k].concat(arcTiles,[unpackTile]);});
+
+const sizeOf=(st,base)=>{const f=FMT[st.fmt];return base*f.r*(st.arc==null?1:f.a[st.arc]);};
+function applyTile(st,t){
+  if(t.type==='unpack'){
+    if(st.arc==null)return{ok:false,msg:'Файл не в архіві — розпаковувати нічого.'};
+    return{ok:true,st:Object.assign({},st,{arc:null})};
+  }
+  if(t.type==='archive'){
+    if(st.arc!=null)return{ok:false,msg:'Файл уже в архіві. Архів в архіві нічого не дасть.'};
+    return{ok:true,st:Object.assign({},st,{arc:t.algo})};
+  }
+  if(st.arc!=null)return{ok:false,msg:'Спершу розпакуйте архів, потім перекодовуйте.'};
+  const to=typeof t.to==='function'?t.to(st.fmt):t.to;
+  if(to===st.fmt)return{ok:false,msg:'Файл уже в цьому форматі.'};
+  const q=FMT[to].q;
+  return{ok:true,st:Object.assign({},st,{fmt:to,qual:Math.max(0,st.qual-q),lossy:st.lossy+(q?1:0)})};
+}
+
+const ROUNDS=[
+  {kind:'text',start:'html',base:1000,moves:4,cond:{type:'free'},name:'report',ext0:'html',brief:'Вебзвіт на кілька сотень сторінок. Текст добре піддається стисненню.'},
+  {kind:'image',start:'bmp',base:24000,moves:3,cond:{type:'quality',min:80},name:'photo',brief:'Сирий растр із камери. Кожне перекодування з втратами додає втрату якості.'},
+  {kind:'sound',start:'wav',base:40000,moves:3,cond:{type:'lossless'},name:'studio_take',brief:'Студійний запис, який має лишитися ідентичним до біта.'},
+  {kind:'video',start:'mov',base:800000,moves:3,cond:{type:'quality',min:75},name:'montage',brief:'Мастер-копія з монтажу. Канал до глядача вузький.'},
+  {kind:'binary',start:'exe',base:30000,moves:4,cond:{type:'lossless'},name:'setup',brief:'Інсталятор. Пошкоджений код уже не код.'},
+  {kind:'text',start:'docx',base:2000,moves:2,cond:{type:'free'},name:'contract',brief:'DOCX уже стиснутий усередині. Подумайте, що саме варто архівувати.'},
+  {kind:'image',start:'bmp',base:36000,moves:1,cond:{type:'lossless'},name:'scan_042',brief:'Лише один хід. Кодувальник чи архіватор?'},
+  {kind:'video',start:'mkv_ffv1',base:1200000,moves:2,cond:{type:'quality',min:70},name:'final_cut',brief:'Фінальний монтаж без втрат. Два ходи, щоб влізти в канал.'}
+];
+const PEN_LOSSLESS=25,PEN_QUALITY=30;
+const startState=d=>({fmt:d.start,arc:null,qual:100,lossy:0});
+const validEnd=(st,c)=>c.type==='lossless'?st.lossy===0:c.type==='quality'?st.qual>=c.min:true;
+const tileText=t=>t.type==='encode'?'→ '+t.label:t.type==='archive'?'архів '+t.label:'розпакувати';
+
+function computeBest(d){
+  const tiles=TILES[d.kind],s0=startState(d);
+  let best={size:sizeOf(s0,d.base),path:[]};
+  let frontier=[{st:s0,path:[]}];
+  for(let k=0;k<d.moves;k++){
+    const next=[];
+    for(const n of frontier)for(const t of tiles){
+      const r=applyTile(n.st,t);if(!r.ok)continue;
+      if(d.cond.type==='quality'&&r.st.qual<d.cond.min)continue;
+      if(d.cond.type==='lossless'&&r.st.lossy>0)continue;
+      const path=n.path.concat([t]),sz=sizeOf(r.st,d.base);
+      if(sz<best.size-1e-9)best={size:sz,path};
+      next.push({st:r.st,path});
+    }
+    frontier=next;
+  }
+  return best;
+}
+const effOf=(start,final,best)=>clamp(Math.log(start/final)/Math.log(start/best),0,1);
+
+const QUIZ=[
+  {q:'Які з цих файлів зазвичай містять текстові дані?',mode:'sets',opts:[{f:['txt','docx','html'],ok:1},{f:['wav','mp3','flac']},{f:['png','jpg','heic']},{f:['dll','exe','mkv']}],why:'TXT, DOCX і HTML зберігають символи та розмітку, тобто текст.'},
+  {q:'Файл photo.heic: який це тип даних?',mode:'kinds',opts:[{k:'text'},{k:'image',ok:1},{k:'sound'},{k:'video'}],why:'HEIC — формат фотографій, тобто растрове зображення.'},
+  {q:'Який із цих файлів містить звук?',mode:'sets',opts:[{f:['mkv']},{f:['txt']},{f:['mp3'],ok:1},{f:['dll']}],why:'MP3 — звуковий формат із втратами. WAV, FLAC та OGG теж звукові.'},
+  {q:'Який набір складається лише з відеоформатів?',mode:'sets',opts:[{f:['mp4','mkv','mov','webm'],ok:1},{f:['mp4','png','mov']},{f:['mkv','wav','webm']},{f:['mov','mp3','mp4']}],why:'MP4, MKV, MOV і WEBM — відеоконтейнери. PNG — картинка, WAV та MP3 — звук.'},
+  {q:'Файл setup.exe: що в ньому зберігається?',mode:'kinds',opts:[{k:'text'},{k:'sound'},{k:'video'},{k:'binary',ok:1}],why:'EXE і DLL містять машинний код: це бінарні дані.'}
+];
+const QUIZ_PTS=20;
+
+const RAR=[{k:'common',n:'Звичайне',c:50},{k:'good',n:'Добре',c:110},{k:'rare',n:'Рідкісне',c:200},{k:'unique',n:'Унікальне',c:340},{k:'myth',n:'Міфічне',c:560}];
+const SLOTS=[
+  {id:'weapon',name:'Алгоритм',icon:'⚔️',vals:[4,8,14,22,34],names:['GZip-кинджал','ZIP-меч','7-Zip-алебарда','Zstandard-клинок','Brotli-катана'],desc:v=>'+'+v+' до сили стиснення'},
+  {id:'armor',name:'Захист даних',icon:'🛡️',vals:[2,4,7,11,16],names:['Тека Temp','Щит RAID-1','Лати RAID-6','ECC-кіраса','Бекап 3-2-1'],desc:v=>'−'+v+' шкоди від удару'},
+  {id:'charm',name:'Носій',icon:'🧿',vals:[1,2,4,6,10],names:['Флешка 8 ГБ','Кеш L2','NVMe-амулет','Серце Optane','Вічний SSD'],desc:v=>'+'+v+' здоров’я щоходу'}
+];
+const BOSS={hp:240,atk:18,price0:18900,priceEnd:4900};
+function heroStats(sel,avgEff){
+  const v=(id)=>{const s=SLOTS.find(x=>x.id===id);return sel[id]==null?0:s.vals[sel[id]];};
+  return{hp:100,atk:5+v('weapon')+Math.round(avgEff*12),def:v('armor'),heal:v('charm')};
+}
+function simulate(h){
+  let hp=h.hp,bhp=BOSS.hp,turn=0;const ev=[];
+  while(hp>0&&bhp>0&&turn<60){
+    turn++;
+    const crit=turn%3===0,dmg=h.atk*(crit?2:1);
+    bhp=Math.max(0,bhp-dmg);ev.push({who:'hero',dmg,crit,hp,bhp,turn});
+    if(bhp<=0)break;
+    const rage=turn%3===0,d=Math.max(3,Math.round(BOSS.atk*(rage?1.5:1))-h.def);
+    hp=Math.max(0,hp-d);ev.push({who:'boss',dmg:d,rage,hp,bhp,turn});
+    if(hp<=0)break;
+    if(h.heal){hp=Math.min(h.hp,hp+h.heal);ev.push({who:'heal',v:h.heal,hp,bhp,turn});}
+  }
+  return{ev,win:bhp<=0};
+}
+//==UI==
+/* ============ ІНТЕРФЕЙС ============ */
+const $=(s,r)=>(r||document).querySelector(s);
+const app=document.getElementById('app'),hdr=document.getElementById('hdr');
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+const pts=n=>n+' '+plural(n,'очко','очки','очок');
+
+function pictHTML(fmt,arc,nosub){
+  const f=FMT[fmt];
+  if(arc!=null)return '<span class="em">📦</span><span class="ext">'+ARC[arc].ext+'</span><span class="sub">'+f.ext+'</span>';
+  return '<span class="em">'+f.em+'</span><span class="ext">'+f.ext+'</span>'+(f.sub&&!nosub?'<span class="sub">'+f.sub+'</span>':'');
+}
+const pict=(fmt,cls)=>'<span class="pict '+(cls||'')+'">'+pictHTML(fmt,null,true)+'</span>';
+
+let G;
+function newGame(){
+  clearTimers();
+  G={screen:'intro',pts:0,quiz:{i:0,ok:0,order:null,answered:null},round:0,results:[],rs:null,sel:{weapon:null,armor:null,charm:null},fight:null,timers:[]};
+}
+function clearTimers(){if(G&&G.timers){G.timers.forEach(clearTimeout);G.timers=[];}}
+function go(s){clearTimers();G.screen=s;render();window.scrollTo(0,0);}
+
+function renderHeader(){
+  const order=['intro','quiz','round','shop','fight'];
+  const stepOf={intro:0,quiz:1,round:2,result:2,shop:3,fight:4};
+  const cur=stepOf[G.screen];
+  const names=['Старт','1 · Тест','2 · Стиснення','3 · Крамниця','4 · Бій'];
+  hdr.innerHTML='<div class="brand"><span class="led"></span>Стискальня</div>'+
+    '<div class="steps">'+names.map((n,i)=>'<span class="'+(i===cur?'on':i<cur?'done':'')+'">'+n+'</span>').join('')+'</div>'+
+    '<div class="pts" title="Очки на купівлю спорядження">● '+pts(G.pts)+'</div>';
+}
+function render(){
+  renderHeader();
+  ({intro:rIntro,quiz:rQuiz,round:rRound,result:rResult,shop:rShop,fight:rFight})[G.screen]();
+}
+
+/* ---- Старт ---- */
+function rIntro(){
+  const cat=['text','image','sound','video','binary'].map(k=>{
+    const ex={text:['txt','docx','html'],image:['bmp','jpg','png','heic'],sound:['wav','mp3'],video:['mp4','mkv','mov','webm'],binary:['dll','exe']}[k];
+    return '<div class="kind"><b>'+KIND[k].em+' '+KIND[k].name+'</b><div class="picts">'+ex.map(f=>pict(f)).join('')+'</div></div>';
+  }).join('');
+  app.innerHTML='<section class="screen">'+
+    '<p class="eyebrow">Симулятор стиснення даних</p>'+
+    '<h1>Зроби файл якомога меншим</h1>'+
+    '<p class="lead">Перетягуйте піктограми файлів на плитки кодування й архівації. Кожен тип даних стискається по-своєму: те, що чудово працює для тексту, марне для відео.</p>'+
+    '<div class="catalog">'+cat+'</div>'+
+    '<div class="panel"><ol class="stagelist">'+
+    '<li><i>1</i><span><b>Тест.</b> П’ять запитань про типи даних. Правильна відповідь дає '+pts(QUIZ_PTS)+'.</span></li>'+
+    '<li><i>2</i><span><b>Стиснення.</b> Вісім раундів: текст, зображення, звук, відео, бінарні дані й далі. Деякі раунди вимагають стиснення без втрат.</span></li>'+
+    '<li><i>3</i><span><b>Крамниця.</b> Витратьте очки на спорядження: від звичайного до міфічного.</span></li>'+
+    '<li><i>4</i><span><b>Бій.</b> Диявол SSD-цін піднімає ціни. Перемагає той, хто добре стискав і добре екіпірувався.</span></li></ol></div>'+
+    '<div class="row"><button class="btn" id="go">Почати тест</button></div></section>';
+  $('#go').onclick=()=>{G.quiz={i:0,ok:0,order:QUIZ.map(q=>shuffle(q.opts)),answered:null};go('quiz');};
+}
+
+/* ---- Тест ---- */
+function rQuiz(){
+  const Q=QUIZ[G.quiz.i],opts=G.quiz.order[G.quiz.i],ans=G.quiz.answered;
+  const body=opts.map((o,idx)=>{
+    const inner=Q.mode==='sets'?o.f.map(f=>pict(f)).join(''):'<span>'+KIND[o.k].em+' '+KIND[o.k].name+'</span>';
+    let cls='opt';
+    if(ans!=null){if(o.ok)cls+=' right';else if(idx===ans)cls+=' wrong';}
+    return '<button class="'+cls+'" data-i="'+idx+'"'+(ans!=null?' disabled':'')+'>'+inner+'</button>';
+  }).join('');
+  const last=G.quiz.i===QUIZ.length-1;
+  app.innerHTML='<section class="screen">'+
+    '<div class="row" style="justify-content:space-between"><p class="eyebrow">Запитання '+(G.quiz.i+1)+' з '+QUIZ.length+'</p><p class="eyebrow">Правильно: '+G.quiz.ok+'</p></div>'+
+    '<div class="prog"><i style="width:'+(G.quiz.i/QUIZ.length*100)+'%"></i></div>'+
+    '<h2>'+Q.q+'</h2><div class="opts">'+body+'</div>'+
+    (ans!=null?'<div class="explain" role="status">'+(opts[ans].ok?'<b>Вірно, +'+pts(QUIZ_PTS)+'.</b> ':'<b>Не зовсім.</b> ')+Q.why+'</div><div class="row"><button class="btn" id="next">'+(last?'До стиснення':'Далі')+'</button></div>':'')+
+    '</section>';
+  app.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.i;G.quiz.answered=i;
+    if(opts[i].ok){G.quiz.ok++;G.pts+=QUIZ_PTS;}
+    renderHeader();rQuiz();
+  });
+  const nx=$('#next');
+  if(nx)nx.onclick=()=>{
+    if(last){startRound(0);}else{G.quiz.i++;G.quiz.answered=null;rQuiz();window.scrollTo(0,0);}
+  };
+}
+
+/* ---- Раунд ---- */
+function startRound(i){
+  const d=ROUNDS[i],best=computeBest(d),st=startState(d);
+  G.round=i;
+  G.rs={i,def:d,st,size0:sizeOf(st,d.base),best,moves:0,penalty:0,log:[],msg:{t:'Перетягніть файл на плитку. Торкання плитки теж працює.',c:''},pop:false,startFmt:d.start};
+  go('round');
+}
+function fileName(R){
+  const f=FMT[R.st.fmt];
+  return R.def.name+'.'+f.ext.toLowerCase()+(R.st.arc!=null?'.'+ARC[R.st.arc].ext.toLowerCase():'');
+}
+function condChips(d){
+  const c=d.cond;
+  let a='<span class="chip">Без обмежень на якість</span>';
+  if(c.type==='lossless')a='<span class="chip warn">Лише без втрат: −'+PEN_LOSSLESS+' за кожну втрату</span>';
+  if(c.type==='quality')a='<span class="chip warn">Якість ≥ '+c.min+'%: інакше −'+PEN_QUALITY+'</span>';
+  return a;
+}
+function rRound(){
+  const R=G.rs,d=R.def,sz=sizeOf(R.st,d.base),left=d.moves-R.moves;
+  const pct=Math.round((1-sz/R.size0)*100);
+  const dl=pct>0?'<span class="delta good">−'+pct+'%</span>':pct<0?'<span class="delta bad">+'+(-pct)+'%</span>':'<span class="delta">0%</span>';
+  const w=clamp(sz/R.size0*100,1.5,100);
+  const isQ=d.cond.type==='quality';
+  const groups=[];
+  const T=TILES[d.kind];
+  const tileBtn=t=>'<button class="tile'+(t.note==='з втратами'||t.note==='ризик поломки'?' lossy':'')+'" data-id="'+t.id+'"><span class="tl">'+t.label+'</span><span class="tn">'+t.note+'</span></button>';
+  const enc=T.filter(t=>t.type==='encode'),arc=T.filter(t=>t.type==='archive'),un=T.filter(t=>t.type==='unpack');
+  groups.push('<div class="tgroup"><h3>Кодування</h3><div class="tgrid">'+enc.map(tileBtn).join('')+'</div></div>');
+  groups.push('<div class="tgroup"><h3>Архівація</h3><div class="tgrid">'+arc.concat(un).map(tileBtn).join('')+'</div></div>');
+  const log=R.log.map((l,i)=>'<li>'+(i+1)+'. <span>'+l+'</span></li>').join('');
+  app.innerHTML='<section class="screen">'+
+    '<div class="rhead"><div><p class="eyebrow">Раунд '+(R.i+1)+' з '+ROUNDS.length+' · '+KIND[d.kind].name+'</p><h2>'+d.name+'.'+FMT[d.start].ext.toLowerCase()+'</h2></div>'+
+    '<div class="chips"><span class="chip">Ходів: '+left+' з '+d.moves+'</span>'+condChips(d)+'</div></div>'+
+    '<p class="lead">'+d.brief+'</p>'+
+    '<div class="stage"><div class="panel bay" id="bay">'+
+      '<div class="slot"><div class="pict lg file'+(R.pop?' pop':'')+'" id="file" role="img" aria-label="Файл '+fileName(R)+'">'+pictHTML(R.st.fmt,R.st.arc)+'</div><div class="fname">'+fileName(R)+'</div></div>'+
+      '<div class="size"><span class="num">'+fmtSize(sz)+'</span>'+dl+'</div>'+
+      '<div class="bar" title="Розмір відносно початкового"><i style="width:'+w+'%"></i></div>'+
+      '<div class="qrow"><span>Якість</span><div class="bar q'+(isQ&&R.st.qual<d.cond.min?' low':'')+'"><i style="width:'+R.st.qual+'%"></i>'+(isQ?'<b class="mark" style="left:'+d.cond.min+'%"></b>':'')+'</div><span>'+R.st.qual+'%</span></div>'+
+      '<p class="msg '+R.msg.c+'" id="msg" role="status" aria-live="polite">'+R.msg.t+'</p>'+
+    '</div><div class="tiles">'+groups.join('')+'</div></div>'+
+    (log?'<ol class="log">'+log+'</ol>':'')+
+    '<div class="row"><button class="btn" id="submit">Здати файл</button><button class="btn ghost" id="reset">Скинути файл</button>'+
+    (left===0?'<span class="hint">Ходи вичерпано. Здайте файл.</span>':'<span class="hint">Штрафи за втрати після скидання лишаються.</span>')+'</div>'+
+    '</section>';
+  R.pop=false;
+  app.querySelectorAll('.tile').forEach(b=>b.onclick=()=>doTile(b.dataset.id));
+  bindDrag($('#file'));
+  $('#submit').onclick=finishRound;
+  $('#reset').onclick=()=>{R.st=startState(d);R.moves=0;R.log=[];R.msg={t:'Файл повернуто до початкового стану.',c:''};rRound();};
+}
+function doTile(id){
+  const R=G.rs,d=R.def,t=TILES[d.kind].find(x=>x.id===id);
+  if(!t)return;
+  const fail=m=>{R.msg={t:m,c:'bad'};rRound();const b=$('#bay');if(b)b.classList.add('shake');};
+  if(R.moves>=d.moves)return fail('Ходи вичерпано. Здайте файл.');
+  const r=applyTile(R.st,t);
+  if(!r.ok)return fail(r.msg);
+  const before=sizeOf(R.st,d.base),oldFmt=R.st.fmt,oldArc=R.st.arc;
+  const newlyLossy=r.st.lossy>R.st.lossy;
+  R.st=r.st;R.moves++;
+  const after=sizeOf(R.st,d.base),ch=Math.round((1-after/before)*100);
+  let txt=(t.type==='encode'?FMT[oldFmt].ext+' → '+FMT[R.st.fmt].ext+(FMT[R.st.fmt].sub?' ('+FMT[R.st.fmt].sub+')':''):t.type==='archive'?'Архів '+t.label:'Розпаковано')+': '+fmtSize(before)+' → '+fmtSize(after)+(ch>0?' (−'+ch+'%)':ch<0?' (+'+(-ch)+'%, розмір зріс)':' (без змін)')+'.';
+  let c=ch>0?'ok':ch<0?'bad':'';
+  if(newlyLossy&&d.cond.type==='lossless'){R.penalty+=PEN_LOSSLESS;txt+=' Втрата даних: −'+PEN_LOSSLESS+' очок.';c='bad';}
+  else if(newlyLossy&&d.cond.type==='quality'&&R.st.qual<d.cond.min){txt+=' Якість нижча за '+d.cond.min+'%.';c='bad';}
+  R.log.push(txt);R.msg={t:txt,c};R.pop=true;
+  rRound();
+}
+function finishRound(){
+  const R=G.rs,d=R.def,final=sizeOf(R.st,d.base);
+  const eff=effOf(R.size0,final,R.best.size);
+  let pen=R.penalty;
+  if(d.cond.type==='quality'&&R.st.qual<d.cond.min)pen+=PEN_QUALITY;
+  const score=Math.max(0,Math.round(eff*100-pen));
+  const res={i:R.i,kind:d.kind,name:d.name,startFmt:R.startFmt,start:R.size0,final,best:R.best.size,bestPath:R.best.path,eff,pen,score,endFmt:R.st.fmt,endArc:R.st.arc,qual:R.st.qual};
+  G.results.push(res);G.pts+=score;R.res=res;
+  go('result');
+}
+function rResult(){
+  const R=G.rs,r=R.res,last=R.i===ROUNDS.length-1;
+  const bp=r.bestPath.length?FMT[r.startFmt].ext+' '+r.bestPath.map(tileText).join(' ').replace(/→ /g,'→ '):'без змін';
+  app.innerHTML='<section class="screen"><p class="eyebrow">Раунд '+(R.i+1)+' завершено</p>'+
+    '<div class="panel" style="display:grid;gap:16px"><div class="cmp">'+
+    '<div style="text-align:center;display:grid;gap:6px;justify-items:center"><span class="pict lg">'+pictHTML(r.startFmt,null)+'</span><b class="chip">'+fmtSize(r.start)+'</b></div><span class="arrow">→</span>'+
+    '<div style="text-align:center;display:grid;gap:6px;justify-items:center"><span class="pict lg">'+pictHTML(r.endFmt,r.endArc)+'</span><b class="chip">'+fmtSize(r.final)+'</b></div></div>'+
+    '<div class="kv"><span>Ефективність</span><b>'+Math.round(r.eff*100)+'%</b>'+
+    '<span>Найкращий можливий результат</span><b>'+fmtSize(r.best)+'</b>'+
+    '<span>Найкращий шлях</span><b style="font-weight:500;white-space:normal">'+bp+'</b>'+
+    '<span>Якість файлу</span><b>'+r.qual+'%</b>'+
+    '<span>Штрафи</span><b>'+(r.pen?'−'+r.pen:'0')+'</b></div>'+
+    '<p class="big">+'+pts(r.score)+'</p></div>'+
+    '<div class="row"><button class="btn" id="next">'+(last?'До крамниці':'Наступний раунд')+'</button></div></section>';
+  $('#next').onclick=()=>last?go('shop'):startRound(R.i+1);
+}
+
+/* ---- Перетягування (pointer events: миша та дотик) ---- */
+function tileAt(x,y){
+  return document.elementsFromPoint(x,y).find(n=>n.classList&&n.classList.contains('tile'))||null;
+}
+function bindDrag(fileEl){
+  if(!fileEl)return;
+  fileEl.addEventListener('pointerdown',e=>{
+    if(e.button>0)return;
+    e.preventDefault();
+    const r=fileEl.getBoundingClientRect(),dx=e.clientX-r.left,dy=e.clientY-r.top;
+    const ghost=fileEl.cloneNode(true);
+    ghost.classList.remove('pop','dragging');ghost.classList.add('ghost');ghost.removeAttribute('id');
+    ghost.style.width=r.width+'px';
+    ghost.style.transform='translate('+(e.clientX-dx)+'px,'+(e.clientY-dy)+'px) rotate(-3deg)';
+    document.body.appendChild(ghost);fileEl.classList.add('dragging');
+    let hover=null;
+    const mv=ev=>{
+      ghost.style.transform='translate('+(ev.clientX-dx)+'px,'+(ev.clientY-dy)+'px) rotate(-3deg)';
+      const t=tileAt(ev.clientX,ev.clientY);
+      if(t!==hover){if(hover)hover.classList.remove('over');hover=t;if(hover)hover.classList.add('over');}
+    };
+    const end=(ev,drop)=>{
+      window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',cancel);
+      ghost.remove();fileEl.classList.remove('dragging');if(hover)hover.classList.remove('over');
+      if(drop){const t=tileAt(ev.clientX,ev.clientY);if(t)doTile(t.dataset.id);}
+    };
+    const up=ev=>end(ev,true),cancel=ev=>end(ev,false);
+    window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);window.addEventListener('pointercancel',cancel);
+  });
+}
+
+/* ---- Крамниця ---- */
+const spent=()=>SLOTS.reduce((s,sl)=>s+(G.sel[sl.id]==null?0:RAR[G.sel[sl.id]].c),0);
+const avgEff=()=>G.results.reduce((s,r)=>s+r.eff,0)/Math.max(1,G.results.length);
+function rShop(){
+  const free=G.pts-spent(),h=heroStats(G.sel,avgEff());
+  const rows=SLOTS.map(sl=>{
+    const items=RAR.map((rar,i)=>{
+      const sel=G.sel[sl.id]===i;
+      const cur=G.sel[sl.id]==null?0:RAR[G.sel[sl.id]].c;
+      const poor=!sel&&rar.c>free+cur;
+      return '<button class="item rc-'+rar.k+(sel?' sel':'')+(poor?' poor':'')+'" data-slot="'+sl.id+'" data-i="'+i+'" aria-pressed="'+sel+'">'+
+        '<span class="rar">'+rar.n+'</span><span class="nm">'+sl.names[i]+'</span><span class="ds">'+sl.desc(sl.vals[i])+'</span><span class="pr">'+pts(rar.c)+'</span></button>';
+    }).join('');
+    return '<div class="slotrow"><h3>'+sl.icon+' '+sl.name+' <small>одна річ у слоті</small></h3><div class="items">'+items+'</div></div>';
+  }).join('');
+  app.innerHTML='<section class="screen"><p class="eyebrow">Крамниця спорядження</p>'+
+    '<h2>Що візьмете на Диявола SSD-цін?</h2>'+
+    '<p class="lead">Очки з тесту та раундів перетворюються на спорядження. Клік по обраній речі повертає очки.</p>'+
+    '<div class="panel stats"><span>Доступно: '+pts(free)+'</span><span>Сила стиснення: +'+Math.round(avgEff()*12)+' до ATK ('+Math.round(avgEff()*100)+'% ефективності)</span></div>'+
+    rows+
+    '<div class="panel" style="display:grid;gap:10px"><b>Ваш герой</b><div class="stats"><span>HP '+h.hp+'</span><span>ATK '+h.atk+'</span><span>ЗАХИСТ '+h.def+'</span><span>ЛІКУВАННЯ '+h.heal+'</span></div></div>'+
+    '<div class="row"><button class="btn" id="fight">Вступити в бій</button></div></section>';
+  app.querySelectorAll('.item').forEach(b=>b.onclick=()=>{
+    const id=b.dataset.slot,i=+b.dataset.i;
+    if(G.sel[id]===i){G.sel[id]=null;}
+    else{
+      const cur=G.sel[id]==null?0:RAR[G.sel[id]].c;
+      if(RAR[i].c>free+cur){b.classList.add('shake');setTimeout(()=>b.classList.remove('shake'),400);return;}
+      G.sel[id]=i;
+    }
+    const y=window.scrollY;rShop();window.scrollTo(0,y);
+  });
+  $('#fight').onclick=startFight;
+}
+
+/* ---- Бій ---- */
+function startFight(){
+  const h=heroStats(G.sel,avgEff()),sim=simulate(h);
+  G.fight={h,sim,idx:0};
+  go('fight');
+}
+const price=bhp=>Math.round(BOSS.priceEnd+(bhp/BOSS.hp)*(BOSS.price0-BOSS.priceEnd));
+const uah=n=>n.toLocaleString('uk-UA')+' ₴';
+function rFight(){
+  const F=G.fight,h=F.h;
+  const wn=G.sel.weapon==null?'Голі руки':SLOTS[0].names[G.sel.weapon];
+  app.innerHTML='<section class="screen"><p class="eyebrow">Фінальний бій</p><h2>Диявол SSD-цін проти вашого стиснення</h2>'+
+    '<div class="arena">'+
+    '<div class="fighter" id="hero"><div class="face">🧑‍💻</div><b>Ви</b><div class="hp"><i id="hhp" style="width:100%"></i></div><span class="stats">ATK '+h.atk+' · ЗАХИСТ '+h.def+'</span></div>'+
+    '<div class="fighter" id="boss"><div class="face">👹</div><b>Диявол SSD-цін</b><div class="hp boss"><i id="bhp" style="width:100%"></i></div><span class="tag" id="price">SSD 1 ТБ: '+uah(BOSS.price0)+'</span></div></div>'+
+    '<div class="flog" id="flog" aria-live="polite"></div>'+
+    '<div class="row" id="ctrl"><button class="btn ghost" id="skip">Пропустити анімацію</button></div>'+
+    '<div id="verdict"></div></section>';
+  addLog('Бій розпочато. Ваша зброя: '+wn+'.','h');
+  const play=()=>{
+    if(F.idx>=F.sim.ev.length){verdict();return;}
+    applyEv(F.sim.ev[F.idx++]);
+    G.timers.push(setTimeout(play,750));
+  };
+  G.timers.push(setTimeout(play,600));
+  $('#skip').onclick=()=>{clearTimers();while(F.idx<F.sim.ev.length)applyEv(F.sim.ev[F.idx++],true);verdict();};
+}
+function addLog(t,c){const l=$('#flog');if(!l)return;const p=document.createElement('div');p.className=c;p.textContent=t;l.appendChild(p);l.scrollTop=l.scrollHeight;}
+function applyEv(ev,quiet){
+  const F=G.fight,h=F.h;
+  $('#hhp').style.width=(ev.hp/h.hp*100)+'%';
+  $('#bhp').style.width=(ev.bhp/BOSS.hp*100)+'%';
+  $('#price').textContent='SSD 1 ТБ: '+uah(price(ev.bhp));
+  const hit=id=>{if(quiet)return;const e=$(id);e.classList.remove('hit');void e.offsetWidth;e.classList.add('hit');};
+  if(ev.who==='hero'){addLog((ev.crit?'Стиснення без втрат! ':'')+'Ви завдаєте '+ev.dmg+' шкоди.','h');hit('#boss');}
+  else if(ev.who==='boss'){addLog((ev.rage?'Інфляція! ':'')+'Диявол піднімає ціни: −'+ev.dmg+' HP.','b');hit('#hero');}
+  else addLog('Носій відновлює '+ev.v+' HP.','l');
+}
+function verdict(){
+  const F=G.fight,win=F.sim.win,ae=avgEff();
+  let tip='';
+  if(!win){
+    tip=ae<.65?'Раунди стиснення дали мало очок і мало сили. Шукайте для кожного типу даних найкращий шлях.':
+      'Спорядження було слабким для такого диявола. Перерозподіліть очки між слотами.';
+  }
+  const rows=G.results.map(r=>'<tr><td>'+(r.i+1)+'</td><td>'+KIND[r.kind].em+' '+r.name+'</td><td class="n">'+fmtSize(r.start)+' → '+fmtSize(r.final)+'</td><td class="n">'+Math.round(r.eff*100)+'%</td><td class="n">'+r.score+'</td></tr>').join('');
+  $('#ctrl').hidden=true;
+  $('#verdict').innerHTML='<div class="panel" style="display:grid;gap:14px"><p class="big">'+(win?'Перемога!':'Поразка')+'</p>'+
+    '<p class="lead">'+(win?'Диявол SSD-цін повержений, ціна на терабайт упала до '+uah(BOSS.priceEnd)+'.':'Диявол SSD-цін втримав ціну на рівні '+uah(price(F.sim.ev[F.sim.ev.length-1].bhp))+'. '+tip)+'</p>'+
+    '<div class="tw"><table><thead><tr><th>№</th><th>Файл</th><th>Розмір</th><th>Ефект.</th><th>Очки</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    '<div class="row">'+(win?'':'<button class="btn" id="again-shop">Змінити спорядження</button>')+'<button class="btn'+(win?'':' ghost')+'" id="restart">Грати спочатку</button></div></div>';
+  const a=$('#again-shop');if(a)a.onclick=()=>go('shop');
+  $('#restart').onclick=()=>{newGame();render();window.scrollTo(0,0);};
+}
+
+newGame();render();
+</script>
+
+</body></html>
