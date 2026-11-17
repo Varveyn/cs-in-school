@@ -1,0 +1,943 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Розбери ПК</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@500;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: workbench with an open PC case on the left, tray of removed parts on the right; quiz sheet opens over the case. */
+:root {
+  --bg: #eceff2;
+  --surface: #f8f9fb;
+  --surface-2: #ffffff;
+  --ink: #15202b;
+  --muted: #566372;
+  --line: #cbd3dc;
+  --accent: #b84a12;
+  --accent-ink: #ffffff;
+  --accent-soft: #f6e3d7;
+  --good: #1b7a47;
+  --good-bg: #dff3e7;
+  --bad: #b3322a;
+  --bad-bg: #fae3e0;
+  --case: #dde3ea;
+  --board: #1f5a4c;
+  --trace: #3f8f7a;
+  --metal: #aab4bf;
+  --metal-2: #7d8996;
+  --dark: #232a33;
+  --chip: #12161b;
+  --label: #e9edf1;
+  --ram: #2d6a9f;
+  --ssd: #5a4b9a;
+  --gold: #c9a24a;
+  --font-display: "Unbounded", "Onest", system-ui, sans-serif;
+  --font-body: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10151b;
+    --surface: #19212a;
+    --surface-2: #1f2832;
+    --ink: #e8edf2;
+    --muted: #93a1b0;
+    --line: #2d3946;
+    --accent: #f08a4b;
+    --accent-ink: #1b0f06;
+    --accent-soft: #3a2517;
+    --good: #52c88c;
+    --good-bg: #17382a;
+    --bad: #ff8274;
+    --bad-bg: #3d1d1a;
+    --case: #0c1116;
+    --metal: #8a95a2;
+    --metal-2: #5f6b78;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10151b;
+  --surface: #19212a;
+  --surface-2: #1f2832;
+  --ink: #e8edf2;
+  --muted: #93a1b0;
+  --line: #2d3946;
+  --accent: #f08a4b;
+  --accent-ink: #1b0f06;
+  --accent-soft: #3a2517;
+  --good: #52c88c;
+  --good-bg: #17382a;
+  --bad: #ff8274;
+  --bad-bg: #3d1d1a;
+  --case: #0c1116;
+  --metal: #8a95a2;
+  --metal-2: #5f6b78;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 15px/1.5 var(--font-body);
+  padding-block: 20px 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.app { max-width: 1100px; margin: 0 auto; display: grid; gap: 16px; }
+.mono { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+
+.top { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; justify-content: space-between; }
+.brand { min-width: 0; flex: 1 1 320px; }
+h1 { margin: 0 0 4px; font: 700 clamp(22px, 4.5vw, 30px)/1.15 var(--font-display); letter-spacing: -.01em; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 60ch; }
+.hud { display: flex; align-items: center; gap: 12px; }
+.score { display: flex; align-items: baseline; gap: 8px; padding: 8px 14px; border: 1.5px solid var(--line); background: var(--surface); border-radius: 6px; }
+.score b { font: 700 24px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.score .of { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 16px; align-items: start; }
+@media (max-width: 860px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+.bench { background: var(--surface); border: 1.5px solid var(--line); border-radius: 10px; padding: 12px; min-width: 0; }
+.bench svg { display: block; width: 100%; max-width: 100%; height: auto; }
+.tray { background: var(--surface); border: 1.5px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+.tray-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+.tray h2 { margin: 0; font: 500 15px/1.3 var(--font-display); }
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-bottom: 14px; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .4s ease; }
+.slots { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+@media (min-width: 520px) and (max-width: 860px) { .slots { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.slot { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px 10px; border: 1.5px dashed var(--line); border-radius: 6px; color: var(--muted); min-height: 42px; }
+.slot .slot-name { overflow-wrap: anywhere; }
+.slot.filled { border-style: solid; border-color: var(--good); background: var(--good-bg); color: var(--ink); }
+.slot-pts { font: 500 13px var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* SVG case */
+.case-body { fill: var(--case); stroke: var(--line); stroke-width: 2; }
+.f-board { fill: var(--board); stroke: #143d33; stroke-width: 2; }
+.f-trace { stroke: var(--trace); opacity: .55; }
+.f-metal { fill: var(--metal); }
+.f-metal2 { fill: var(--metal-2); }
+.f-dark { fill: var(--dark); }
+.f-chip { fill: var(--chip); }
+.f-label { fill: var(--label); }
+.f-ram { fill: var(--ram); }
+.f-ssd { fill: var(--ssd); }
+.f-gold { fill: var(--gold); }
+.f-accent { fill: var(--accent); }
+.fan-bg { fill: #161b21; stroke: var(--metal-2); stroke-width: 2; }
+.blade { fill: var(--metal); }
+.line-metal { stroke: var(--metal-2); fill: none; }
+.cable { fill: none; stroke-width: 6; stroke-linecap: round; }
+.cable.k1 { stroke: #2d333b; }
+.cable.k2 { stroke: var(--gold); }
+.cables { transition: opacity .35s; }
+.cables.off { opacity: 0; }
+.part { cursor: pointer; transition: opacity .35s ease, transform .35s ease, visibility 0s linear .35s; outline: none; }
+.part .hit { fill: transparent; stroke: transparent; stroke-width: 2.5; pointer-events: all; }
+.part:hover .hit, .part:focus-visible .hit { stroke: var(--accent); stroke-dasharray: 6 4; }
+.part:hover { filter: drop-shadow(0 0 5px var(--accent)); }
+.part.locked { cursor: not-allowed; }
+.part.removed { opacity: 0; transform: translateY(-26px); pointer-events: none; visibility: hidden; }
+.ghost { display: none; fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 5 4; opacity: .6; pointer-events: none; }
+.ghost.show { display: block; }
+
+/* Buttons */
+.btn { padding: 11px 18px; border: 1.5px solid transparent; border-radius: 6px; background: var(--accent); color: var(--accent-ink); font: 600 15px var(--font-body); cursor: pointer; }
+.btn:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.icon-btn { width: 34px; height: 34px; border: 1.5px solid var(--line); border-radius: 6px; background: transparent; color: var(--ink); font: 400 20px/1 var(--font-body); cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Overlay / sheet */
+.overlay { position: fixed; inset: 0; z-index: 20; display: flex; align-items: flex-end; justify-content: center; background: rgba(8, 12, 16, .62);
+  padding-top: max(16px, env(safe-area-inset-top, 0px)); padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+@media (min-width: 640px) { .overlay { align-items: center; } }
+.sheet { width: 100%; max-width: 580px; max-height: 100%; overflow-y: auto; background: var(--surface); color: var(--ink); border: 1.5px solid var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 14px; }
+.sheet:focus { outline: none; }
+.sheet-head { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+.sheet-head .who { min-width: 0; display: grid; gap: 2px; }
+.sheet-head .name { font: 500 14px var(--font-display); overflow-wrap: anywhere; }
+.pips { display: flex; gap: 6px; }
+.pips i { width: 22px; height: 5px; border-radius: 3px; background: var(--line); }
+.pips i.done { background: var(--accent); }
+.pips i.cur { background: var(--ink); }
+.q { margin: 0; font: 500 18px/1.35 var(--font-display); text-wrap: balance; }
+.hint { margin: -6px 0 0; color: var(--muted); font-size: 14px; }
+.opts { display: grid; gap: 8px; }
+.opt { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 12px 14px; border: 1.5px solid var(--line); background: var(--surface-2); color: var(--ink); border-radius: 8px; font: 400 15px/1.4 var(--font-body); cursor: pointer; }
+.opt:hover:not(.locked) { border-color: var(--accent); }
+.opt .opt-body { min-width: 0; display: grid; gap: 4px; }
+.opt .opt-text { min-width: 0; overflow-wrap: anywhere; }
+.opt .opt-why { font-size: 13.5px; line-height: 1.4; color: var(--muted); }
+.opt.right .opt-why, .opt.wrong .opt-why { color: var(--ink); }
+.opt .opt-mark { flex: none; font: 600 15px var(--font-mono); width: 20px; text-align: center; }
+.opt[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.opt[aria-pressed="true"] .opt-mark::before { content: "●"; color: var(--accent); }
+.opt.locked { cursor: default; }
+.opt.right { border-color: var(--good); background: var(--good-bg); }
+.opt.right .opt-mark { color: var(--good); }
+.opt.right .opt-mark::before { content: "✓"; }
+.opt.wrong { border-color: var(--bad); background: var(--bad-bg); }
+.opt.wrong .opt-mark { color: var(--bad); }
+.opt.wrong .opt-mark::before { content: "✗"; }
+.opt.missed { border-style: dashed; border-color: var(--good); }
+.opt.missed .opt-mark { color: var(--good); }
+.opt.missed .opt-mark::before { content: "+"; }
+.fb { padding: 12px 14px; border-radius: 8px; border: 1.5px solid; }
+.fb.ok { border-color: var(--good); background: var(--good-bg); }
+.fb.bad { border-color: var(--bad); background: var(--bad-bg); }
+.fb strong { font-weight: 600; }
+.fb p { margin: 6px 0 0; font-size: 14px; }
+.actions { display: flex; justify-content: flex-end; position: sticky; bottom: -20px; margin: 0 -20px -20px; padding: 12px 20px; background: var(--surface); border-top: 1.5px solid var(--line); border-radius: 0 0 12px 12px; }
+.actions:has(> .btn[hidden]) { display: none; }
+
+/* Result */
+.result-top { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center; }
+.tier-letter { font: 700 clamp(52px, 16vw, 84px)/1 var(--font-display); color: var(--accent); letter-spacing: -.02em; }
+.result-top h2 { margin: 0 0 4px; font: 500 18px/1.3 var(--font-display); }
+.result-top p { margin: 0; color: var(--muted); }
+.ladder { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ladder th { text-align: left; font: 500 11px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 6px 8px; border-bottom: 1.5px solid var(--line); }
+.ladder td { padding: 7px 8px; border-bottom: 1px solid var(--line); }
+.ladder td:first-child { font: 700 14px var(--font-display); width: 56px; }
+.ladder td:nth-child(2) { font-variant-numeric: tabular-nums; width: 80px; }
+.ladder tr.me td { background: var(--accent-soft); }
+.ladder tr.me td:first-child { color: var(--accent); }
+.table-wrap { overflow-x: auto; }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(20px, env(safe-area-inset-bottom, 0px)); z-index: 30; max-width: min(92vw, 420px); padding: 11px 16px; border-radius: 8px; background: var(--ink); color: var(--bg); font-size: 14px; box-shadow: 0 6px 24px rgba(0,0,0,.3); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Розбери ПК</h1>
+      <p class="lede">Натискайте на деталі в корпусі й знімайте їх по одній. Підписів немає: назву кожної деталі треба впізнати.</p>
+    </div>
+    <div class="hud">
+      <div class="score" aria-live="polite"><span class="mono">Бали</span><b id="score">0</b><span class="of" id="max">/ 280</span></div>
+      <button type="button" id="restart" class="btn ghost">Спочатку</button>
+    </div>
+  </header>
+
+  <div class="stage">
+    <section class="bench" aria-label="Відкритий корпус комп’ютера">
+      <svg id="case" viewBox="0 0 800 520" role="group" aria-label="Відкритий корпус комп’ютера">
+        <defs>
+          <linearGradient id="gMetal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9dfe5"/><stop offset="1" stop-color="#8794a2"/></linearGradient>
+          <linearGradient id="gMetalH" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8794a2"/><stop offset=".5" stop-color="#e4e9ee"/><stop offset="1" stop-color="#8794a2"/></linearGradient>
+          <linearGradient id="gDark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b434e"/><stop offset="1" stop-color="#161b21"/></linearGradient>
+          <linearGradient id="gPcb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#256a54"/><stop offset="1" stop-color="#17402f"/></linearGradient>
+          <linearGradient id="gCopper" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3b98a"/><stop offset="1" stop-color="#a65f2b"/></linearGradient>
+          <linearGradient id="gPlatter" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f2f5f8"/><stop offset=".5" stop-color="#9ba7b3"/><stop offset="1" stop-color="#e5eaef"/></linearGradient>
+          <pattern id="pins" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="1.2" fill="#d4b25a"/></pattern>
+          <pattern id="fingers" width="4" height="9" patternUnits="userSpaceOnUse"><rect width="2.4" height="9" fill="#d4b25a"/></pattern>
+          <path id="bl" d="M2 -5 C 14 -10 30 -20 18 -33 C 6 -31 -3 -18 -3 -5 Z"/>
+          <g id="fan">
+            <circle r="36" fill="#0f1317" stroke="#4a5461" stroke-width="2.5"/>
+            <g fill="#97a3b0" stroke="#5b6773" stroke-width=".6">
+              <use href="#bl"/>
+              <use href="#bl" transform="rotate(40)"/>
+              <use href="#bl" transform="rotate(80)"/>
+              <use href="#bl" transform="rotate(120)"/>
+              <use href="#bl" transform="rotate(160)"/>
+              <use href="#bl" transform="rotate(200)"/>
+              <use href="#bl" transform="rotate(240)"/>
+              <use href="#bl" transform="rotate(280)"/>
+              <use href="#bl" transform="rotate(320)"/>
+            </g>
+            <circle r="10" fill="url(#gDark)" stroke="#6b7785" stroke-width="1.5"/>
+            <circle r="3.5" fill="#aab4bf"/>
+          </g>
+        </defs>
+
+        <rect class="case-body" x="6" y="6" width="788" height="508" rx="14"/>
+
+        <g class="cables" id="cables">
+          <path class="cable k1" d="M120 390 V 340 Q120 230 250 230"/>
+          <path class="cable k2" d="M160 390 V 340 Q160 270 250 270"/>
+          <path class="cable k1" d="M200 390 V 365 Q200 337 258 337"/>
+        </g>
+
+        <!-- Motherboard -->
+        <g class="part" data-id="mb" tabindex="0" role="button" aria-label="Невідома деталь. Натисніть, щоб розглянути">
+          <rect x="250" y="40" width="520" height="440" rx="6" fill="url(#gPcb)" stroke="#0f2f26" stroke-width="2"/>
+          <g id="mb-slots"></g>
+          <g fill="none" stroke="#5fb59d" stroke-width="1.4" opacity=".4">
+            <path d="M262 215 H 322 V 290 H 510"/>
+            <path d="M460 150 H 505 V 250"/>
+            <path d="M620 250 H 700 V 345"/>
+            <path d="M300 395 H 640 V 398"/>
+            <path d="M680 60 V 335"/>
+            <path d="M640 70 H 680"/>
+          </g>
+          <!-- I/O ports on the left edge -->
+          <rect x="226" y="50" width="26" height="152" rx="2" fill="url(#gMetalH)" stroke="#5b6773"/>
+          <rect x="231" y="56" width="16" height="14" fill="#3b6ea5"/><rect x="231" y="74" width="16" height="14" fill="#3b6ea5"/>
+          <rect x="231" y="92" width="16" height="14" fill="#2b2f36"/><rect x="231" y="110" width="16" height="14" fill="#2b2f36"/>
+          <rect x="231" y="128" width="16" height="22" fill="#14181d"/>
+          <circle cx="239" cy="164" r="4" fill="#58b36d"/><circle cx="239" cy="178" r="4" fill="#d96a8a"/><circle cx="239" cy="192" r="4" fill="#4a90d9"/>
+          <!-- VRM heatsinks -->
+          <rect x="262" y="60" width="40" height="150" rx="4" fill="url(#gMetal)" stroke="#5b6773"/>
+          <path d="M266 72 H 298 M266 84 H 298 M266 96 H 298 M266 108 H 298 M266 120 H 298 M266 132 H 298 M266 144 H 298 M266 156 H 298 M266 168 H 298 M266 180 H 298 M266 192 H 298" stroke="#6b7785" stroke-width="2" fill="none"/>
+          <rect x="320" y="60" width="110" height="18" rx="3" fill="url(#gMetal)" stroke="#5b6773"/>
+          <path d="M328 62 V 76 M338 62 V 76 M348 62 V 76 M358 62 V 76 M368 62 V 76 M378 62 V 76 M388 62 V 76 M398 62 V 76 M408 62 V 76 M418 62 V 76" stroke="#6b7785" stroke-width="2" fill="none"/>
+          <!-- CPU 8-pin and 24-pin power connectors -->
+          <rect x="440" y="44" width="48" height="12" rx="2" fill="#e8ebee"/>
+          <path d="M446 46 v 8 M454 46 v 8 M462 46 v 8 M470 46 v 8 M478 46 v 8" stroke="#8b95a1" stroke-width="2"/>
+          <rect x="738" y="64" width="24" height="86" rx="2" fill="#e8ebee"/>
+          <path d="M744 68 h 12 M744 76 h 12 M744 84 h 12 M744 92 h 12 M744 100 h 12 M744 108 h 12 M744 116 h 12 M744 124 h 12 M744 132 h 12 M744 140 h 12" stroke="#8b95a1" stroke-width="3"/>
+          <!-- capacitors -->
+          <g fill="#b9c1ca" stroke="#3a424d" stroke-width="1.2">
+            <circle cx="314" cy="104" r="4.5"/><circle cx="314" cy="122" r="4.5"/><circle cx="314" cy="140" r="4.5"/><circle cx="314" cy="158" r="4.5"/><circle cx="314" cy="176" r="4.5"/><circle cx="314" cy="194" r="4.5"/>
+          </g>
+          <!-- chipset heatsink -->
+          <rect x="640" y="400" width="84" height="58" rx="4" fill="url(#gMetal)" stroke="#5b6773"/>
+          <path d="M650 408 H 714 M650 418 H 714 M650 428 H 714 M650 438 H 714 M650 448 H 714" stroke="#6b7785" stroke-width="2.2" fill="none"/>
+          <!-- audio codec, battery, SATA ports -->
+          <rect x="270" y="456" width="28" height="20" rx="2" fill="#12161b"/>
+          <circle cx="595" cy="430" r="13" fill="url(#gMetal)" stroke="#5b6773"/><circle cx="595" cy="430" r="6" fill="#8794a2"/>
+          <rect x="735" y="385" width="26" height="12" rx="2" fill="#12161b"/><rect x="735" y="403" width="26" height="12" rx="2" fill="#12161b"/><rect x="735" y="421" width="26" height="12" rx="2" fill="#12161b"/>
+          <g fill="#aab4bf" stroke="#5b6773"><circle cx="264" cy="54" r="5"/><circle cx="757" cy="54" r="5"/><circle cx="264" cy="466" r="5"/><circle cx="757" cy="466" r="5"/><circle cx="500" cy="466" r="5"/></g>
+        </g>
+
+        <!-- Hard disk (cover removed) -->
+        <g class="part" data-id="hdd" tabindex="0" role="button" aria-label="Невідома деталь. Натисніть, щоб розглянути">
+          <rect x="30" y="40" width="190" height="131" rx="7" fill="url(#gMetal)" stroke="#5f6b78" stroke-width="1.5"/>
+          <rect x="38" y="48" width="174" height="115" rx="5" fill="#a3aeb9" stroke="#6b7785"/>
+          <circle cx="100" cy="105" r="53" fill="#4a5461"/>
+          <circle cx="100" cy="105" r="50" fill="url(#gPlatter)"/>
+          <g fill="none" stroke="#7d8996" stroke-width=".8"><circle cx="100" cy="105" r="43"/><circle cx="100" cy="105" r="34"/><circle cx="100" cy="105" r="25"/></g>
+          <path d="M100 105 L 100 55 A 50 50 0 0 1 143 80 Z" fill="#ffffff" opacity=".4"/>
+          <path d="M100 105 L 100 155 A 50 50 0 0 1 57 130 Z" fill="#ffffff" opacity=".32"/>
+          <circle cx="100" cy="105" r="14" fill="url(#gMetalH)" stroke="#5b6773"/>
+          <g fill="#3a424d"><circle cx="108" cy="105" r="1.8"/><circle cx="104" cy="98" r="1.8"/><circle cx="96" cy="98" r="1.8"/><circle cx="92" cy="105" r="1.8"/><circle cx="96" cy="112" r="1.8"/><circle cx="104" cy="112" r="1.8"/></g>
+          <rect x="178" y="46" width="34" height="16" rx="3" fill="#2a313a" stroke="#55606d"/>
+          <path d="M193 70 L 132 98 L 136 106 L 200 78 Z" fill="url(#gMetalH)" stroke="#5b6773"/>
+          <rect x="122" y="96" width="15" height="10" rx="2" fill="#2a313a" transform="rotate(-25 129 101)"/>
+          <circle cx="197" cy="74" r="9" fill="url(#gMetal)" stroke="#5b6773"/><circle cx="197" cy="74" r="3" fill="#3a424d"/>
+          <rect x="158" y="150" width="50" height="9" fill="#181b20"/><rect x="160" y="151" width="46" height="7" fill="url(#fingers)"/>
+          <g fill="#6b7785" stroke="#4a5461"><circle cx="46" cy="56" r="3.5"/><circle cx="46" cy="155" r="3.5"/><circle cx="206" cy="155" r="3.5" opacity="0"/></g>
+        </g>
+
+        <!-- Power supply -->
+        <g class="part" data-id="psu" tabindex="0" role="button" aria-label="Невідома деталь. Натисніть, щоб розглянути">
+          <rect x="30" y="390" width="200" height="100" rx="6" fill="url(#gDark)" stroke="#0e1216" stroke-width="1.5"/>
+          <rect x="36" y="396" width="188" height="88" rx="4" fill="none" stroke="#4a5461"/>
+          <circle cx="95" cy="441" r="41" fill="#0e1216" stroke="#55606d" stroke-width="2"/>
+          <use href="#fan" transform="translate(95 441) scale(.92)"/>
+          <g fill="none" stroke="#7d8996" stroke-width="1.6">
+            <circle cx="95" cy="441" r="38"/><circle cx="95" cy="441" r="28"/><circle cx="95" cy="441" r="18"/>
+            <path d="M95 403 V 479 M57 441 H 133 M68 414 L 122 468 M122 414 L 68 468"/>
+          </g>
+          <path d="M160 410 H 216 M160 422 H 216 M160 434 H 216 M160 446 H 216 M160 458 H 216 M160 470 H 216" stroke="#55606d" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <rect x="40" y="398" width="26" height="14" rx="2" fill="#e9edf1"/>
+          <path d="M55 400 L 49 408 H 54 L 52 411 L 59 403 H 54 Z" fill="#d9a521"/>
+        </g>
+
+        <!-- RAM -->
+        <g class="part" data-id="ram" tabindex="0" role="button" aria-label="Невідома деталь. Натисніть, щоб розглянути">
+          <g id="ram-sticks"></g>
+        </g>
+
+        <!-- SSD (M.2 NVMe) -->
+        <g class="part" data-id="ssd" tabindex="0" role="button" aria-label="Невідома деталь. Натисніть, щоб розглянути">
+          <rect x="270" y="225" width="170" height="36" rx="3" fill="#2a2c34" stroke="#0e1014"/>
+          <rect x="270" y="226" width="12" height="34" fill="#181a1f"/>
+          <path d="M270 230 H 282 M270 234 H 282 M270 238 H 282 M270 242 H 282 M270 246 H 282 M270 250 H 282 M270 254 H 282" stroke="#d4b25a" stroke-width="2" fill="none"/>
+          <rect x="292" y="231" width="26" height="24" rx="2" fill="#0f1114" stroke="#3b414a"/>
+          <rect x="324" y="231" width="40" height="24" rx="2" fill="#0f1114" stroke="#3b414a"/>
+          <rect x="370" y="231" width="40" height="24" rx="2" fill="#0f1114" stroke="#3b414a"/>
+          <g fill="#6b7785"><circle cx="296" cy="235" r="1.3"/><circle cx="328" cy="235" r="1.3"/><circle cx="374" cy="235" r="1.3"/></g>
+          <path d="M296 246 H 314" stroke="#566170" stroke-width="1.4"/>
+          <circle cx="430" cy="243" r="5" fill="url(#gMetal)" stroke="#5b6773"/><path d="M427.5 243 H 432.5" stroke="#4a5461" stroke-width="1.2"/>
+        </g>
+
+        <!-- CPU with cooler -->
+        <g class="part" data-id="cpu" tabindex="0" role="button" aria-label="Невідома деталь. Натисніть, щоб розглянути">
+          <rect x="346" y="76" width="88" height="10" rx="5" fill="url(#gCopper)"/>
+          <rect x="324" y="84" width="132" height="132" rx="8" fill="url(#gMetal)" stroke="#5b6773" stroke-width="1.5"/>
+          <path id="cpu-fins" d="" stroke="#6b7785" stroke-width="1.5" fill="none"/>
+          <rect x="334" y="94" width="112" height="112" rx="10" fill="#1b2027" stroke="#3a424d" stroke-width="2"/>
+          <g fill="#aab4bf" stroke="#4a5461"><circle cx="342" cy="102" r="3"/><circle cx="438" cy="102" r="3"/><circle cx="342" cy="198" r="3"/><circle cx="438" cy="198" r="3"/></g>
+          <use href="#fan" transform="translate(390 150) scale(1.1)"/>
+        </g>
+
+        <!-- GPU -->
+        <g class="part" data-id="gpu" tabindex="0" role="button" aria-label="Невідома деталь. Натисніть, щоб розглянути">
+          <rect x="265" y="300" width="490" height="72" rx="8" fill="url(#gDark)" stroke="#0b0e12"/>
+          <path d="M265 372 L 265 338 L 328 300 L 418 300 L 352 372 Z" fill="#2a323c"/>
+          <path d="M600 372 L 660 300 L 755 300 L 755 372 Z" fill="#2a323c"/>
+          <rect class="f-accent" x="265" y="300" width="490" height="4" rx="2"/>
+          <rect x="290" y="372" width="270" height="7" fill="#181b20"/><rect x="290" y="372" width="270" height="7" fill="url(#fingers)"/>
+          <circle cx="350" cy="338" r="34" fill="#0d1115" stroke="#55606d" stroke-width="2"/>
+          <circle cx="510" cy="338" r="34" fill="#0d1115" stroke="#55606d" stroke-width="2"/>
+          <circle cx="670" cy="338" r="34" fill="#0d1115" stroke="#55606d" stroke-width="2"/>
+          <use href="#fan" transform="translate(350 338) scale(.88)"/>
+          <use href="#fan" transform="translate(510 338) scale(.88)"/>
+          <use href="#fan" transform="translate(670 338) scale(.88)"/>
+          <rect x="252" y="292" width="14" height="92" rx="2" fill="url(#gMetalH)" stroke="#5b6773"/>
+          <g fill="#14181d"><rect x="255" y="300" width="8" height="11"/><rect x="255" y="316" width="8" height="11"/><rect x="255" y="332" width="8" height="11"/><rect x="255" y="350" width="8" height="14"/></g>
+          <rect x="706" y="294" width="42" height="12" rx="2" fill="#14181d"/>
+          <path d="M712 297 v 6 M720 297 v 6 M728 297 v 6 M736 297 v 6 M744 297 v 6" stroke="#aab4bf" stroke-width="2"/>
+        </g>
+      </svg>
+    </section>
+
+    <aside class="tray" aria-label="Зняті деталі">
+      <div class="tray-head"><h2>Зняті деталі</h2><span class="mono" id="count">0 / 7</span></div>
+      <div class="bar"><i id="bar"></i></div>
+      <ol class="slots" id="slots"></ol>
+    </aside>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="q-title" tabindex="-1">
+    <div class="sheet-head">
+      <div class="who"><span class="mono" id="q-step"></span><span class="name" id="q-part">Невідома деталь</span></div>
+      <div class="pips" id="pips" aria-hidden="true"><i></i><i></i><i></i></div>
+      <button type="button" class="icon-btn" id="q-close" aria-label="Закрити">×</button>
+    </div>
+    <h2 class="q" id="q-title"></h2>
+    <p class="hint" id="q-hint" hidden></p>
+    <div id="q-fb" aria-live="polite"></div>
+    <div class="opts" id="q-body"></div>
+    <div class="actions"><button type="button" class="btn" id="q-act" hidden></button></div>
+  </section>
+</div>
+
+<div class="overlay" id="result" hidden>
+  <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="r-title" tabindex="-1" id="r-sheet">
+    <div class="result-top">
+      <div class="tier-letter" id="r-letter">F</div>
+      <div><h2 id="r-title"></h2><p id="r-score"></p><p id="r-best"></p></div>
+    </div>
+    <div class="table-wrap">
+      <table class="ladder">
+        <thead><tr><th>Рівень</th><th>Від балів</th><th>Звання</th></tr></thead>
+        <tbody id="r-rows"></tbody>
+      </table>
+    </div>
+    <div class="actions"><button type="button" class="btn" id="r-again">Грати знову</button></div>
+  </section>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var PTS_NAME = 10, PTS_FUNC = 10, PTS_UNIT = 5, PER_PART = 40;
+
+  var o = function (t, why) { return { t: t, why: why }; };
+  var PARTS = [
+    { id: 'cpu',
+      name: o('Процесор (CPU)', 'Так: це центральний процесор. Зверху на ньому стоїть кулер із вентилятором.'),
+      nameWrong: [
+        o('Графічний прискорювач', 'Ні. Відеокарта — довга плата в слоті PCIe, а не квадратний чип у сокеті.'),
+        o('Мережевий контролер', 'Ні. Мережевий контролер — маленька мікросхема на платі, без великого кулера.'),
+        o('Звуковий кодек', 'Ні. Звуковий кодек — крихітна мікросхема біля аудіороз’ємів.')],
+      func: o('Виконує інструкції програм і керує обчисленнями', 'Так: процесор виконує команди програм і обробляє дані.'),
+      funcWrong: [
+        o('Тимчасово зберігає дані запущених програм', 'Це робота оперативної пам’яті (RAM).'),
+        o('Обробляє зображення й виводить його на монітор', 'Це робота відеокарти.'),
+        o('Постачає живлення на всі компоненти', 'Це робота блока живлення.')],
+      good: [
+        o('Кількість ядер і потоків', 'Так: від цього залежить, скільки завдань процесор виконує паралельно.'),
+        o('Тактова частота (ГГц)', 'Так: вона показує, скільки тактів за секунду виконує процесор.'),
+        o('Обсяг кеш-пам’яті L3', 'Так: це швидкий буфер на кристалі, що прискорює доступ до даних.'),
+        o('Тип сокета та TDP', 'Так: сокет визначає, до яких плат підходить процесор, а TDP — тепловиділення й потрібне охолодження.')],
+      bad: [
+        o('Обсяг відеопам’яті (VRAM)', 'Ні: це характеристика відеокарти.'),
+        o('Швидкість обертання шпинделя', 'Ні: це характеристика жорсткого диска.'),
+        o('Сертифікат 80 PLUS', 'Ні: це характеристика блока живлення.')],
+      fact: 'Сучасний процесор містить мільярди транзисторів на кристалі площею лише в кілька сотень квадратних міліметрів.' },
+
+    { id: 'gpu',
+      name: o('Відеокарта (GPU)', 'Так: це відеокарта, довга плата з вентиляторами в слоті PCIe.'),
+      nameWrong: [
+        o('Звукова карта', 'Ні. Звукова карта значно менша й не має великих вентиляторів.'),
+        o('Плата розширення USB', 'Ні. Така плата має лише порти й невеликий чип, без системи охолодження.'),
+        o('Мережева карта', 'Ні. Мережева карта невелика, з портом Ethernet або антенами Wi‑Fi.')],
+      func: o('Обробляє графіку та виводить зображення на монітор', 'Так: відеокарта рахує графіку й надсилає картинку на монітор.'),
+      funcWrong: [
+        o('Керує обміном даними між усіма компонентами', 'Це робота материнської плати.'),
+        o('Зберігає операційну систему й файли', 'Це роль накопичувача (SSD або HDD).'),
+        o('Тимчасово зберігає дані запущених програм', 'Це робота оперативної пам’яті.')],
+      good: [
+        o('Обсяг і тип відеопам’яті (VRAM)', 'Так: це швидка власна пам’ять для текстур і кадрів.'),
+        o('Кількість шейдерних (потокових) ядер', 'Так: чим їх більше, тим більше розрахунків виконується паралельно.'),
+        o('Відеовиходи (HDMI, DisplayPort)', 'Так: через них підключають монітори.'),
+        o('Енергоспоживання (TDP) і роз’єми живлення', 'Так: потужні відеокарти потребують додаткового живлення від блока.')],
+      bad: [
+        o('Швидкість обертання шпинделя', 'Ні: це характеристика жорстких дисків.'),
+        o('Тип сокета процесора', 'Ні: сокет є в процесора й материнської плати.'),
+        o('Таймінги пам’яті CL', 'Ні: так описують оперативну пам’ять.')],
+      fact: 'Відеокарти потрібні не лише для ігор: їхній паралелізм прискорює й навчання нейромереж.' },
+
+    { id: 'ram',
+      name: o('Оперативна пам’ять (RAM)', 'Так: це модулі оперативної пам’яті, вони стоять у слотах DIMM біля процесора.'),
+      nameWrong: [
+        o('Постійна пам’ять (ROM)', 'Ні. ROM — мікросхема з прошивкою, а не змінні планки в слотах.'),
+        o('Кеш-пам’ять процесора', 'Ні. Кеш розташований усередині самого процесора.'),
+        o('Відеопам’ять', 'Ні. Відеопам’ять розпаяна на відеокарті.')],
+      func: o('Тимчасово зберігає дані та код програм, з якими комп’ютер працює просто зараз', 'Так: RAM тримає те, з чим система працює зараз, і дає швидкий доступ до цього.'),
+      funcWrong: [
+        o('Постійно зберігає файли після вимкнення живлення', 'Ні: RAM втрачає дані без живлення, файли зберігає накопичувач.'),
+        o('Перетворює напругу мережі на постійну', 'Це робота блока живлення.'),
+        o('Виконує математичні обчислення', 'Це робота процесора (а графіку рахує відеокарта).')],
+      good: [
+        o('Обсяг (ГБ)', 'Так: він визначає, скільки даних вміщається одночасно.'),
+        o('Тип (DDR4 / DDR5)', 'Так: різні покоління мають різні слоти й між собою несумісні.'),
+        o('Частота (МТ/с)', 'Так: вона впливає на швидкість передачі даних.'),
+        o('Таймінги (CL)', 'Так: це затримки доступу до комірок пам’яті.')],
+      bad: [
+        o('Кількість ядер і потоків', 'Ні: це характеристика процесора.'),
+        o('Швидкість обертання шпинделя', 'Ні: це характеристика жорсткого диска.'),
+        o('Сертифікат 80 PLUS', 'Ні: це характеристика блока живлення.')],
+      fact: 'Оперативна пам’ять енергозалежна: після вимкнення ПК усі дані в ній зникають.' },
+
+    { id: 'ssd',
+      name: o('SSD-накопичувач', 'Так: це M.2 NVMe SSD. Він схожий на довгу «жуйку» й кріпиться до плати одним гвинтом.'),
+      nameWrong: [
+        o('Оперативна пам’ять', 'Ні. RAM — це довші модулі у слотах DIMM, а не маленька плата в роз’ємі M.2.'),
+        o('Карта Wi‑Fi', 'Ні. Wi‑Fi модуль теж буває формату M.2, але має роз’єми для антен.'),
+        o('Жорсткий диск (HDD)', 'Ні. HDD значно більший, має магнітні пластини й рухомі частини.')],
+      func: o('Постійно зберігає систему й файли у флеш-пам’яті, без рухомих частин', 'Так: SSD зберігає дані у флеш-пам’яті й тримає їх без живлення.'),
+      funcWrong: [
+        o('Тимчасово зберігає дані запущених програм', 'Це робота оперативної пам’яті.'),
+        o('Обробляє графіку', 'Це робота відеокарти.'),
+        o('Зберігає дані на магнітних пластинах, що обертаються', 'Це описує HDD. В SSD немає рухомих частин.')],
+      good: [
+        o('Ємність (ГБ / ТБ)', 'Так: вона показує, скільки даних вміщає накопичувач.'),
+        o('Інтерфейс (SATA або NVMe)', 'Так: від нього залежать швидкість і тип роз’єму.'),
+        o('Швидкість читання й запису (МБ/с)', 'Так: це головна перевага SSD над HDD.'),
+        o('Ресурс запису (TBW)', 'Так: це обсяг даних, який можна записати до зносу комірок.')],
+      bad: [
+        o('Швидкість обертання шпинделя', 'Ні: в SSD немає шпинделя, це характеристика HDD.'),
+        o('Кількість ядер і потоків', 'Ні: це характеристика процесора.'),
+        o('Частота шини DDR', 'Ні: це характеристика оперативної пам’яті.')],
+      fact: 'NVMe SSD на PCIe 4.0 читає понад 7000 МБ/с, а жорсткий диск — приблизно до 250 МБ/с.' },
+
+    { id: 'hdd',
+      name: o('Жорсткий диск (HDD)', 'Так: це жорсткий диск. Тут знято кришку, тому видно пластину, шпиндель і головку.'),
+      nameWrong: [
+        o('Твердотільний накопичувач (SSD)', 'Ні. В SSD немає пластин і головок, це лише плата з мікросхемами.'),
+        o('Оптичний привід', 'Ні. В оптичному приводі диск CD/DVD читає лазер, а тут магнітна пластина.'),
+        o('Блок охолодження', 'Ні. Охолодження — це радіатори й вентилятори, а не диск із пластиною.')],
+      func: o('Зберігає дані на магнітних пластинах, що обертаються; дешево дає великий обсяг', 'Так: головка записує й читає дані з пластин, що обертаються.'),
+      funcWrong: [
+        o('Тимчасово зберігає дані запущених програм', 'Це робота оперативної пам’яті.'),
+        o('Виконує інструкції програм', 'Це робота процесора.'),
+        o('Зберігає дані у флеш-пам’яті без рухомих частин', 'Це описує SSD.')],
+      good: [
+        o('Ємність (ТБ)', 'Так: HDD вигідні великим обсягом за невисоку ціну.'),
+        o('Швидкість обертання шпинделя (5400 / 7200 об/хв)', 'Так: чим швидше обертання, тим швидший доступ до даних.'),
+        o('Обсяг кеш-буфера', 'Так: це невеликий буфер, що згладжує читання й запис.'),
+        o('Інтерфейс SATA', 'Так: через нього диск підключається до плати.')],
+      bad: [
+        o('Тип флеш-пам’яті (TLC / QLC)', 'Ні: це характеристика SSD.'),
+        o('Кількість CUDA-ядер', 'Ні: це характеристика відеокарт NVIDIA.'),
+        o('Таймінги CL', 'Ні: це характеристика оперативної пам’яті.')],
+      fact: 'Читальна головка HDD ширяє над пластиною на відстані лише кількох нанометрів.' },
+
+    { id: 'psu',
+      name: o('Блок живлення (БЖ)', 'Так: це блок живлення. Його видно за решіткою вентилятора й пучком кабелів.'),
+      nameWrong: [
+        o('Джерело безперебійного живлення (ДБЖ)', 'Ні. ДБЖ — окремий пристрій з акумулятором, він стоїть поза корпусом.'),
+        o('Перетворювач відеосигналу', 'Ні. Такий перетворювач — маленький адаптер на кабелі.'),
+        o('Зарядний пристрій для батареї', 'Ні. В ПК є лише крихітна батарейка CR2032 на материнській платі.')],
+      func: o('Перетворює змінну напругу мережі на постійну та живить усі компоненти', 'Так: БЖ перетворює 230 В змінного струму на постійні 12, 5 і 3,3 В.'),
+      funcWrong: [
+        o('Охолоджує компоненти повітрям', 'Ні. Його вентилятор охолоджує лише сам блок, решту обдувають кулери.'),
+        o('Зберігає дані при вимкненні живлення', 'Це роль накопичувача.'),
+        o('З’єднує компоненти шинами даних', 'Це робота материнської плати.')],
+      good: [
+        o('Номінальна потужність (Вт)', 'Так: вона має покривати споживання всіх деталей із запасом.'),
+        o('Сертифікат ефективності 80 PLUS', 'Так: він показує ККД, тобто яка частка енергії йде на втрати.'),
+        o('Набір роз’ємів (24-pin, CPU, PCIe)', 'Так: потрібні роз’єми для плати, процесора й відеокарти.'),
+        o('Модульність кабелів', 'Так: знімні кабелі спрощують складання й дають менше безладу.')],
+      bad: [
+        o('Кількість ядер і потоків', 'Ні: це характеристика процесора.'),
+        o('Обсяг кеш-пам’яті L3', 'Ні: це характеристика процесора.'),
+        o('Частота (МТ/с)', 'Ні: це характеристика оперативної пам’яті.')],
+      fact: 'Сертифікат 80 PLUS означає ККД не менше 80% на типових навантаженнях.' },
+
+    { id: 'mb',
+      name: o('Материнська плата', 'Так: це материнська плата, на яку кріпляться всі інші деталі.'),
+      nameWrong: [
+        o('Мережева карта', 'Ні. Це лише одна невелика плата розширення, а тут — основа для всіх деталей.'),
+        o('Звукова карта', 'Ні. Аудіо тут забезпечує лише маленький чип біля роз’ємів.'),
+        o('Контролер вентиляторів', 'Ні. Контролер вентиляторів — маленька плата з роз’ємами для кулерів.')],
+      func: o('З’єднує всі компоненти ПК і забезпечує обмін даними між ними', 'Так: шини й роз’єми плати зв’язують усі деталі та передають їм живлення.'),
+      funcWrong: [
+        o('Перетворює змінну напругу мережі на постійну', 'Це робота блока живлення.'),
+        o('Виконує інструкції програм', 'Це робота процесора.'),
+        o('Постійно зберігає файли користувача', 'Це роль накопичувача.')],
+      good: [
+        o('Форм-фактор (ATX, Micro-ATX, Mini-ITX)', 'Так: він визначає розмір плати та сумісність із корпусом.'),
+        o('Тип сокета для процесора', 'Так: до сокета підходять лише певні процесори.'),
+        o('Чипсет', 'Так: він визначає набір функцій і кількість портів.'),
+        o('Кількість і тип слотів RAM та PCIe', 'Так: від цього залежить, скільки пам’яті й карт можна встановити.')],
+      bad: [
+        o('Кількість CUDA-ядер', 'Ні: це характеристика відеокарти.'),
+        o('Швидкість обертання шпинделя', 'Ні: це характеристика жорсткого диска.'),
+        o('Сертифікат 80 PLUS', 'Ні: це характеристика блока живлення.')],
+      requires: ['cpu', 'gpu', 'ram', 'ssd'],
+      fact: 'Плата стандарту ATX має розмір 305 × 244 мм.' }
+  ];
+  var BY = {};
+  PARTS.forEach(function (p) { BY[p.id] = p; });
+  var MAX = PARTS.length * PER_PART;
+
+  var TIERS = [
+    { k: 'SSS', pct: 95, t: 'Легенда сервісного центру' },
+    { k: 'SS', pct: 88, t: 'Майстер збирання' },
+    { k: 'S', pct: 80, t: 'Системний адміністратор' },
+    { k: 'A', pct: 70, t: 'Досвідчений збирач' },
+    { k: 'B', pct: 60, t: 'Впевнений користувач' },
+    { k: 'C', pct: 50, t: 'Майстер-початківець' },
+    { k: 'D', pct: 35, t: 'Потрібне повторення' },
+    { k: 'E', pct: 20, t: 'Багато прогалин' },
+    { k: 'F', pct: 0, t: 'Почніть з основ' }
+  ];
+  TIERS.forEach(function (t) { t.min = Math.ceil(t.pct * MAX / 100); });
+  function tierFor(score) {
+    for (var i = 0; i < TIERS.length; i++) if (score >= TIERS[i].min) return TIERS[i];
+    return TIERS[TIERS.length - 1];
+  }
+
+  var $ = function (id) { return document.getElementById(id); };
+  var svg = $('case');
+  var S;
+
+  function shuffle(a) {
+    a = a.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  /* ---------- build SVG extras ---------- */
+  (function buildBoard() {
+    var i, x;
+    var ram = '';
+    for (i = 0; i < 4; i++) {
+      x = 520 + i * 26;
+      ram += '<rect x="' + x + '" y="60" width="16" height="164" rx="2" fill="url(#gDark)" stroke="#0b0e12"/>' +
+        '<rect x="' + (x + 2) + '" y="74" width="2.5" height="140" rx="1" fill="#566170"/>' +
+        '<rect class="f-accent" x="' + x + '" y="60" width="16" height="8" rx="2"/>' +
+        '<rect x="' + (x + 1) + '" y="224" width="14" height="9" fill="#181b20"/>' +
+        '<rect x="' + (x + 1) + '" y="224" width="14" height="9" fill="url(#fingers)"/>';
+    }
+    $('ram-sticks').innerHTML = ram;
+
+    var f = '';
+    for (i = 0; i < 20; i++) f += 'M326 ' + (90 + i * 6) + ' H454 ';
+    $('cpu-fins').setAttribute('d', f);
+
+    var b = '';
+    for (i = 0; i < 4; i++) {
+      x = 520 + i * 26;
+      b += '<rect x="' + (x - 3) + '" y="54" width="22" height="190" rx="2" fill="#12161b" stroke="#2c343e"/>' +
+        '<rect x="' + (x - 3) + '" y="46" width="22" height="8" rx="1" fill="#d5dae0"/>' +
+        '<rect x="' + (x - 3) + '" y="244" width="22" height="8" rx="1" fill="#d5dae0"/>';
+    }
+    b += '<rect x="328" y="88" width="124" height="124" rx="4" fill="url(#gMetal)" stroke="#5b6773"/>' +
+      '<rect x="340" y="100" width="100" height="100" fill="#171c21"/>' +
+      '<rect x="340" y="100" width="100" height="100" fill="url(#pins)"/>' +
+      '<path d="M446 96 V 206" stroke="#e2e7ec" stroke-width="3" fill="none"/>';
+    b += '<rect x="278" y="352" width="340" height="18" rx="2" fill="#12161b" stroke="#2c343e"/>' +
+      '<rect x="618" y="356" width="10" height="10" rx="1" fill="#d5dae0"/>' +
+      '<rect x="278" y="410" width="290" height="12" rx="2" fill="#12161b" stroke="#2c343e"/>' +
+      '<rect x="278" y="435" width="110" height="12" rx="2" fill="#12161b" stroke="#2c343e"/>';
+    b += '<rect x="262" y="227" width="14" height="32" rx="2" fill="#12161b" stroke="#2c343e"/>' +
+      '<circle cx="430" cy="243" r="6" fill="url(#gMetal)" stroke="#5b6773"/>';
+    $('mb-slots').innerHTML = b;
+  })();
+
+  var NS = 'http://www.w3.org/2000/svg';
+  svg.querySelectorAll('.part').forEach(function (g) {
+    var b = g.getBBox(), pad = 6;
+    var attrs = { x: b.x - pad, y: b.y - pad, width: b.width + pad * 2, height: b.height + pad * 2, rx: 6 };
+    var hit = document.createElementNS(NS, 'rect');
+    var ghost = document.createElementNS(NS, 'rect');
+    Object.keys(attrs).forEach(function (k) { hit.setAttribute(k, attrs[k]); ghost.setAttribute(k, attrs[k]); });
+    hit.setAttribute('class', 'hit');
+    ghost.setAttribute('class', 'ghost');
+    ghost.dataset.for = g.dataset.id;
+    g.appendChild(hit);
+    g.parentNode.insertBefore(ghost, g);
+    g.addEventListener('click', function () { openPart(g.dataset.id); });
+    g.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPart(g.dataset.id); }
+    });
+  });
+
+  /* ---------- tray ---------- */
+  function buildSlots() {
+    var ol = $('slots');
+    ol.replaceChildren();
+    for (var i = 0; i < PARTS.length; i++) {
+      var li = el('li', 'slot');
+      li.append(el('span', 'mono', String(i + 1)), el('span', 'slot-name', 'Порожньо'), el('span', 'slot-pts', ''));
+      ol.append(li);
+    }
+  }
+
+  /* ---------- state ---------- */
+  function reset() {
+    S = { score: 0, removed: [], cur: null, step: 0, answered: false, pts: [0, 0, 0], picks: new Set(), checked: false, from: null };
+    svg.querySelectorAll('.part').forEach(function (g) { g.classList.remove('removed'); g.setAttribute('aria-hidden', 'false'); });
+    svg.querySelectorAll('.ghost').forEach(function (g) { g.classList.remove('show'); });
+    $('cables').classList.remove('off');
+    buildSlots();
+    $('max').textContent = '/ ' + MAX;
+    hud();
+    lockState();
+    $('overlay').hidden = true;
+    $('result').hidden = true;
+    $('app').inert = false;
+  }
+  function hud() {
+    $('score').textContent = S.score;
+    $('count').textContent = S.removed.length + ' / ' + PARTS.length;
+    $('bar').style.width = (S.removed.length / PARTS.length * 100) + '%';
+  }
+  function missing(p) {
+    return (p.requires || []).filter(function (r) { return S.removed.indexOf(r) < 0; });
+  }
+  function lockState() {
+    var mb = svg.querySelector('[data-id="mb"]');
+    mb.classList.toggle('locked', missing(BY.mb).length > 0);
+  }
+  var toastTimer;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.hidden = true; }, 3200);
+  }
+
+  /* ---------- quiz ---------- */
+  function openPart(id) {
+    if (S.removed.indexOf(id) >= 0 || !$('overlay').hidden || !$('result').hidden) return;
+    var p = BY[id];
+    var miss = missing(p);
+    if (miss.length) {
+      toast('Спершу зніміть усе, що кріпиться до цієї плати: процесор, відеокарту, пам’ять і SSD.');
+      return;
+    }
+    S.cur = id; S.step = 0; S.pts = [0, 0, 0];
+    S.from = document.activeElement;
+    $('q-part').textContent = 'Невідома деталь';
+    $('overlay').hidden = false;
+    $('app').inert = true;
+    renderStep();
+  }
+  function closeQuiz() {
+    $('overlay').hidden = true;
+    $('app').inert = false;
+    if (S.from && S.from.focus && document.contains(S.from)) { try { S.from.focus(); } catch (e) {} }
+  }
+  function pips() {
+    var is = $('pips').children;
+    for (var i = 0; i < 3; i++) {
+      is[i].className = i < S.step ? 'done' : (i === S.step ? 'cur' : '');
+    }
+  }
+  function showFb(ok, main, extra) {
+    var box = $('q-fb');
+    box.replaceChildren();
+    var d = el('div', 'fb ' + (ok ? 'ok' : 'bad'));
+    d.append(el('strong', null, main));
+    (extra || []).forEach(function (t) { d.append(el('p', null, t)); });
+    box.append(d);
+    d.scrollIntoView({ block: 'nearest' });
+  }
+  function optBtn(item) {
+    var b = el('button', 'opt');
+    b.type = 'button';
+    b.dataset.t = item.t;
+    var body = el('span', 'opt-body');
+    var why = el('span', 'opt-why', item.why);
+    why.hidden = true;
+    body.append(el('span', 'opt-text', item.t), why);
+    var m = el('span', 'opt-mark'); m.setAttribute('aria-hidden', 'true');
+    b.append(body, m);
+    return b;
+  }
+  function reveal(opt) {
+    opt.classList.add('locked');
+    var w = opt.querySelector('.opt-why');
+    if (w) w.hidden = false;
+  }
+  function renderStep() {
+    var p = BY[S.cur];
+    S.answered = false; S.picks = new Set(); S.checked = false;
+    $('q-body').replaceChildren();
+    $('q-fb').replaceChildren();
+    $('q-step').textContent = 'Питання ' + (S.step + 1) + ' з 3';
+    $('q-close').hidden = !(S.step === 0);
+    $('q-hint').hidden = true;
+    var act = $('q-act');
+    act.hidden = true; act.disabled = false;
+    pips();
+    if (S.step === 0) choice('Як називається ця деталь?', p.name, p.nameWrong, PTS_NAME);
+    else if (S.step === 1) choice('За що відповідає ця деталь?', p.func, p.funcWrong, PTS_FUNC);
+    else multi(p);
+    $('sheet').scrollTop = 0;
+    $('sheet').focus();
+  }
+  function choice(title, correct, wrong, pts) {
+    $('q-title').textContent = title;
+    var body = $('q-body');
+    shuffle([correct].concat(wrong)).forEach(function (item) {
+      var b = optBtn(item);
+      b.addEventListener('click', function () {
+        if (S.answered) return;
+        S.answered = true;
+        $('q-close').hidden = true;
+        var ok = item === correct;
+        S.pts[S.step] = ok ? pts : 0;
+        body.querySelectorAll('.opt').forEach(function (opt) {
+          reveal(opt);
+          if (opt.dataset.t === correct.t) opt.classList.add('right');
+          else if (opt === b) opt.classList.add('wrong');
+        });
+        if (S.step === 0) $('q-part').textContent = BY[S.cur].name.t;
+        showFb(ok, ok ? 'Правильно! +' + pts : 'Не зовсім. 0 балів.', ['Пояснення до кожного варіанта нижче.']);
+        var act = $('q-act');
+        act.hidden = false; act.disabled = false; act.textContent = 'Далі';
+        act.onclick = function () { S.step++; renderStep(); };
+        $('sheet').scrollTop = 0;
+        act.focus({ preventScroll: true });
+      });
+      body.append(b);
+    });
+  }
+  function multi(p) {
+    $('q-title').textContent = 'Які характеристики ключові для цієї деталі?';
+    var hint = $('q-hint');
+    hint.hidden = false;
+    hint.textContent = 'Оберіть усі, що підходять. Кожна правильна дає +5, кожна зайва забирає 5.';
+    var body = $('q-body');
+    var act = $('q-act');
+    act.hidden = false; act.disabled = true; act.textContent = 'Перевірити';
+    shuffle(p.good.concat(p.bad)).forEach(function (item) {
+      var b = optBtn(item);
+      b.setAttribute('aria-pressed', 'false');
+      b.addEventListener('click', function () {
+        if (S.checked) return;
+        var on = !S.picks.has(item.t);
+        if (on) S.picks.add(item.t); else S.picks.delete(item.t);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        act.disabled = S.picks.size === 0;
+      });
+      body.append(b);
+    });
+    act.onclick = function () {
+      S.checked = true;
+      var good = new Set(p.good.map(function (x) { return x.t; })), g = 0, bd = 0;
+      S.picks.forEach(function (t) { if (good.has(t)) g++; else bd++; });
+      var pts = PTS_UNIT * Math.max(0, g - bd);
+      S.pts[2] = pts;
+      body.querySelectorAll('.opt').forEach(function (opt) {
+        var t = opt.dataset.t, isGood = good.has(t), sel = S.picks.has(t);
+        reveal(opt);
+        opt.removeAttribute('aria-pressed');
+        if (isGood && sel) opt.classList.add('right');
+        else if (isGood) opt.classList.add('missed');
+        else if (sel) opt.classList.add('wrong');
+      });
+      var total = S.pts[0] + S.pts[1] + S.pts[2];
+      var extra = ['Разом за деталь: ' + total + ' з ' + PER_PART + '. Пояснення до кожного варіанта нижче.'];
+      if (p.fact) extra.push('Цікаво: ' + p.fact);
+      showFb(g === good.size && bd === 0,
+        'Влучно: ' + g + ' з ' + good.size + (bd ? ', зайвих: ' + bd : '') + '. +' + pts + ' з ' + (PTS_UNIT * good.size),
+        extra);
+      act.textContent = 'Зняти деталь';
+      act.onclick = finishPart;
+      $('sheet').scrollTop = 0;
+      act.focus({ preventScroll: true });
+    };
+  }
+  function finishPart() {
+    var id = S.cur, p = BY[id];
+    var total = S.pts[0] + S.pts[1] + S.pts[2];
+    S.score += total;
+    var idx = S.removed.length;
+    S.removed.push(id);
+    var g = svg.querySelector('.part[data-id="' + id + '"]');
+    g.classList.add('removed'); g.setAttribute('aria-hidden', 'true');
+    svg.querySelector('.ghost[data-for="' + id + '"]').classList.add('show');
+    if (id === 'psu' || id === 'mb') $('cables').classList.add('off');
+    var slot = $('slots').children[idx];
+    slot.classList.add('filled');
+    slot.children[1].textContent = p.name.t;
+    slot.children[2].textContent = '+' + total;
+    hud(); lockState();
+    S.from = $('restart');
+    closeQuiz();
+    if (S.removed.length === PARTS.length) setTimeout(showResult, 600);
+  }
+
+  /* ---------- result ---------- */
+  function showResult() {
+    var t = tierFor(S.score), best = null, prev = null;
+    try { prev = JSON.parse(localStorage.getItem('pc-teardown-best') || 'null'); } catch (e) {}
+    best = prev && typeof prev.score === 'number' ? prev.score : null;
+    var newBest = best === null || S.score > best;
+    if (newBest) { try { localStorage.setItem('pc-teardown-best', JSON.stringify({ score: S.score })); } catch (e) {} }
+    $('r-letter').textContent = t.k;
+    $('r-title').textContent = t.t;
+    $('r-score').textContent = 'Результат: ' + S.score + ' з ' + MAX + ' (' + Math.round(S.score / MAX * 100) + '%)';
+    $('r-best').textContent = best === null ? 'Це ваш перший результат.' :
+      (newBest ? 'Новий особистий рекорд! Попередній: ' + best + '.' : 'Ваш рекорд: ' + best + '.');
+    var rows = $('r-rows');
+    rows.replaceChildren();
+    TIERS.forEach(function (x) {
+      var tr = document.createElement('tr');
+      if (x.k === t.k) tr.className = 'me';
+      tr.append(el('td', null, x.k), el('td', null, String(x.min)), el('td', null, x.t));
+      rows.append(tr);
+    });
+    $('result').hidden = false;
+    $('app').inert = true;
+    $('r-sheet').scrollTop = 0;
+    $('r-sheet').focus();
+  }
+
+  /* ---------- wiring ---------- */
+  $('q-close').addEventListener('click', closeQuiz);
+  $('overlay').addEventListener('click', function (e) {
+    if (e.target === $('overlay') && S.step === 0 && !S.answered) closeQuiz();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !$('overlay').hidden && S.step === 0 && !S.answered) closeQuiz();
+  });
+  $('restart').addEventListener('click', reset);
+  $('r-again').addEventListener('click', reset);
+
+  reset();
+})();
+</script>
+
+</body></html>
